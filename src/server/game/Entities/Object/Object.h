@@ -121,10 +121,10 @@ public:
     [[nodiscard]] TypeID GetTypeId() const { return m_objectTypeId; }
     [[nodiscard]] bool isType(uint16 mask) const { return (mask & m_objectType); }
 
-    virtual void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) const;
+    virtual void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target);
     void SendUpdateToPlayer(Player* player);
 
-    void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target) const;
+    void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target);
     void BuildOutOfRangeUpdateBlock(UpdateData* data) const;
     void BuildMovementUpdateBlock(UpdateData* data, uint32 flags = 0) const;
 
@@ -183,7 +183,7 @@ public:
     [[nodiscard]] virtual bool hasQuest(uint32 /* quest_id */) const { return false; }
     [[nodiscard]] virtual bool hasInvolvedQuest(uint32 /* quest_id */) const { return false; }
     virtual void BuildUpdate(UpdateDataMapType&, UpdatePlayerSet&) {}
-    void BuildFieldsUpdate(Player*, UpdateDataMapType&) const;
+    void BuildFieldsUpdate(Player*, UpdateDataMapType&);
 
     void SetFieldNotifyFlag(uint16 flag) { _fieldNotifyFlags |= flag; }
     void RemoveFieldNotifyFlag(uint16 flag) { _fieldNotifyFlags &= ~flag; }
@@ -229,7 +229,7 @@ protected:
     uint32 GetUpdateFieldData(Player const* target, uint32*& flags) const;
 
     void BuildMovementUpdate(ByteBuffer* data, uint16 flags) const;
-    virtual void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, Player* target) const;
+    virtual void BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target);
 
     uint16 m_objectType;
 
@@ -493,7 +493,9 @@ public:
 
     void PlayDistanceSound(uint32 sound_id, Player* target = nullptr);
     void PlayDirectSound(uint32 sound_id, Player* target = nullptr);
+    void PlayRadiusSound(uint32 sound_id, float radius);
     void PlayDirectMusic(uint32 music_id, Player* target = nullptr);
+    void PlayRadiusMusic(uint32 music_id, float radius);
 
     void SendObjectDeSpawnAnim(ObjectGuid guid);
 
@@ -623,6 +625,7 @@ public:
     void SetAllowedLooters(GuidUnorderedSet const looters);
     [[nodiscard]] bool HasAllowedLooter(ObjectGuid guid) const;
     [[nodiscard]] GuidUnorderedSet const& GetAllowedLooters() const;
+    void RemoveAllowedLooter(ObjectGuid guid);
 
     std::string GetDebugInfo() const override;
 

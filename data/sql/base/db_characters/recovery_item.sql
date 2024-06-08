@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -19,11 +19,11 @@ DROP TABLE IF EXISTS `recovery_item`;
 CREATE TABLE IF NOT EXISTS `recovery_item` (
   `Id` int unsigned NOT NULL AUTO_INCREMENT,
   `Guid` int unsigned NOT NULL DEFAULT '0',
-  `ItemEntry` mediumint unsigned NOT NULL DEFAULT '0',
+  `ItemEntry` int unsigned DEFAULT '0',
   `Count` int unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`Id`),
   KEY `idx_guid` (`Guid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table acore_characters.recovery_item: ~0 rows (approximately)
 DELETE FROM `recovery_item`;

@@ -18,8 +18,8 @@
 #ifndef __UNIT_H
 #define __UNIT_H
 
-#include "EventProcessor.h"
 #include "EnumFlag.h"
+#include "EventProcessor.h"
 #include "FollowerRefMgr.h"
 #include "FollowerReference.h"
 #include "HostileRefMgr.h"
@@ -311,13 +311,13 @@ enum BaseModType
 
 #define MOD_END (PCT_MOD+1)
 
-enum DeathState
+enum class DeathState : uint8
 {
-    ALIVE       = 0,
-    JUST_DIED   = 1,
-    CORPSE      = 2,
-    DEAD        = 3,
-    JUST_RESPAWNED = 4,
+    Alive         = 0,
+    JustDied      = 1,
+    Corpse        = 2,
+    Dead          = 3,
+    JustRespawned = 4,
 };
 
 enum UnitState
@@ -391,7 +391,7 @@ enum UnitMoveType
 extern float baseMoveSpeed[MAX_MOVE_TYPE];
 extern float playerBaseMoveSpeed[MAX_MOVE_TYPE];
 
-enum WeaponAttackType
+enum WeaponAttackType : uint8
 {
     BASE_ATTACK   = 0,
     OFF_ATTACK    = 1,
@@ -438,6 +438,29 @@ enum DamageEffectType : uint8
     HEAL                    = 3,
     NODAMAGE                = 4,                            // used also in case when damage applied to health but not applied to spell channelInterruptFlags/etc
     SELF_DAMAGE             = 5
+};
+
+// Used for IsClass hook
+enum ClassContext : uint8
+{
+    CLASS_CONTEXT_NONE              = 0, // Default
+    CLASS_CONTEXT_INIT              = 1,
+    CLASS_CONTEXT_TELEPORT          = 2,
+    CLASS_CONTEXT_QUEST             = 3,
+    CLASS_CONTEXT_STATS             = 4,
+    CLASS_CONTEXT_TAXI              = 5,
+    CLASS_CONTEXT_SKILL             = 6,
+    CLASS_CONTEXT_TALENT_POINT_CALC = 7,
+    CLASS_CONTEXT_ABILITY           = 8,
+    CLASS_CONTEXT_ABILITY_REACTIVE  = 9,
+    CLASS_CONTEXT_PET               = 10,
+    CLASS_CONTEXT_PET_CHARM         = 11,
+    CLASS_CONTEXT_EQUIP_RELIC       = 12,
+    CLASS_CONTEXT_EQUIP_SHIELDS     = 13,
+    CLASS_CONTEXT_EQUIP_ARMOR_CLASS = 14,
+    CLASS_CONTEXT_WEAPON_SWAP       = 15,
+    CLASS_CONTEXT_GRAVEYARD         = 16,
+    CLASS_CONTEXT_CLASS_TRAINER     = 17
 };
 
 // Value masks for UNIT_FIELD_FLAGS
@@ -1306,6 +1329,62 @@ private:
     Unit* defaultValue;
 };
 
+// BuildValuesCachePosPointers is marks of the position of some data inside of BuildValue cache.
+struct BuildValuesCachePosPointers
+{
+    BuildValuesCachePosPointers() :
+        UnitNPCFlagsPos(-1), UnitFieldAuraStatePos(-1), UnitFieldFlagsPos(-1), UnitFieldDisplayPos(-1),
+        UnitDynamicFlagsPos(-1), UnitFieldBytes2Pos(-1), UnitFieldFactionTemplatePos(-1) {}
+
+    void ApplyOffset(uint32 offset)
+    {
+        if (UnitNPCFlagsPos >= 0)
+            UnitNPCFlagsPos += offset;
+
+        if (UnitFieldAuraStatePos >= 0)
+            UnitFieldAuraStatePos += offset;
+
+        if (UnitFieldFlagsPos >= 0)
+            UnitFieldFlagsPos += offset;
+
+        if (UnitFieldDisplayPos >= 0)
+            UnitFieldDisplayPos += offset;
+
+        if (UnitDynamicFlagsPos >= 0)
+            UnitDynamicFlagsPos += offset;
+
+        if (UnitFieldBytes2Pos >= 0)
+            UnitFieldBytes2Pos += offset;
+
+        if (UnitFieldFactionTemplatePos >= 0)
+            UnitFieldFactionTemplatePos += offset;
+
+        for (auto it = other.begin(); it != other.end(); ++it)
+            it->second += offset;
+    }
+
+    int32 UnitNPCFlagsPos;
+    int32 UnitFieldAuraStatePos;
+    int32 UnitFieldFlagsPos;
+    int32 UnitFieldDisplayPos;
+    int32 UnitDynamicFlagsPos;
+    int32 UnitFieldBytes2Pos;
+    int32 UnitFieldFactionTemplatePos;
+
+    std::unordered_map<uint16 /*index*/, uint32 /*pos*/> other;
+};
+
+// BuildValuesCachedBuffer cache for calculated BuildValue.
+struct BuildValuesCachedBuffer
+{
+    BuildValuesCachedBuffer(uint32 bufferSize) :
+        buffer(bufferSize), posPointers() {}
+
+    ByteBuffer buffer;
+
+    BuildValuesCachePosPointers posPointers;
+};
+
 class Unit : public WorldObject
 {
 public:
@@ -1423,6 +1502,11 @@ public:
     [[nodiscard]] uint32 GetUnitState() const { return m_state; }
     [[nodiscard]] bool CanFreeMove() const
     {
+        //npcbot: skip owner guid condition for bots
+        if (IsNPCBotOrPet())
+            return !HasUnitState(UNIT_STATE_CONFUSED | UNIT_STATE_FLEEING | UNIT_STATE_IN_FLIGHT |
+                                 UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED);
+        //end npcbot
         return !HasUnitState(UNIT_STATE_CONFUSED | UNIT_STATE_FLEEING | UNIT_STATE_IN_FLIGHT |
                              UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED) && !GetOwnerGUID();
     }
@@ -1447,8 +1531,11 @@ public:
     void setRace(uint8 race);
     [[nodiscard]] uint32 getRaceMask() const { return 1 << (getRace(true) - 1); }
     [[nodiscard]] uint8 getClass() const { return GetByteValue(UNIT_FIELD_BYTES_0, 1); }
+    [[nodiscard]] virtual bool IsClass(Classes unitClass, [[maybe_unused]] ClassContext context = CLASS_CONTEXT_NONE) const { return (getClass() == unitClass); }
     [[nodiscard]] uint32 getClassMask() const { return 1 << (getClass() - 1); }
     [[nodiscard]] uint8 getGender() const { return GetByteValue(UNIT_FIELD_BYTES_0, 2); }
+    [[nodiscard]] DisplayRace GetDisplayRaceFromModelId(uint32 modelId) const;
+    [[nodiscard]] DisplayRace GetDisplayRace() const { return GetDisplayRaceFromModelId(GetDisplayId()); };
 
     //npcbot: compatibility accessors
     [[nodiscard]] inline uint8 GetRace(bool original = false) const { return getRace(original); }
@@ -1492,6 +1579,7 @@ public:
 
     [[nodiscard]] Powers getPowerType() const { return Powers(GetByteValue(UNIT_FIELD_BYTES_0, 3)); }
     void setPowerType(Powers power);
+    [[nodiscard]] virtual bool HasActivePowerType(Powers power) { return getPowerType() == power; }
     [[nodiscard]] uint32 GetPower(Powers power) const { return GetUInt32Value(static_cast<uint16>(UNIT_FIELD_POWER1) + power); }
     [[nodiscard]] uint32 GetMaxPower(Powers power) const { return GetUInt32Value(static_cast<uint16>(UNIT_FIELD_MAXPOWER1) + power); }
     void SetPower(Powers power, uint32 val, bool withPowerUpdate = true, bool fromRegenerate = false);
@@ -1839,9 +1927,9 @@ public:
 
     void BuildHeartBeatMsg(WorldPacket* data) const;
 
-    [[nodiscard]] bool IsAlive() const { return (m_deathState == ALIVE); };
-    [[nodiscard]] bool isDying() const { return (m_deathState == JUST_DIED); };
-    [[nodiscard]] bool isDead() const { return (m_deathState == DEAD || m_deathState == CORPSE); };
+    [[nodiscard]] bool IsAlive() const { return (m_deathState == DeathState::Alive); };
+    [[nodiscard]] bool isDying() const { return (m_deathState == DeathState::JustDied); };
+    [[nodiscard]] bool isDead() const { return (m_deathState == DeathState::Dead || m_deathState == DeathState::Corpse); };
     //npcbot
     /*
     DeathState getDeathState() { return m_deathState; };
@@ -2028,7 +2116,7 @@ public:
     AuraApplication* GetAuraApplicationOfRankedSpell(uint32 spellId, ObjectGuid casterGUID = ObjectGuid::Empty, ObjectGuid itemCasterGUID = ObjectGuid::Empty, uint8 reqEffMask = 0, AuraApplication* except = nullptr) const;
     [[nodiscard]] Aura* GetAuraOfRankedSpell(uint32 spellId, ObjectGuid casterGUID = ObjectGuid::Empty, ObjectGuid itemCasterGUID = ObjectGuid::Empty, uint8 reqEffMask = 0) const;
 
-    void GetDispellableAuraList(Unit* caster, uint32 dispelMask, DispelChargesList& dispelList);
+    void GetDispellableAuraList(Unit* caster, uint32 dispelMask, DispelChargesList& dispelList, SpellInfo const* dispelSpell);
 
     [[nodiscard]] bool HasAuraEffect(uint32 spellId, uint8 effIndex, ObjectGuid caster = ObjectGuid::Empty) const;
     [[nodiscard]] uint32 GetAuraCount(uint32 spellId) const;
@@ -2534,7 +2622,7 @@ public:
 protected:
     explicit Unit (bool isWorldObject);
 
-    void BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, Player* target) const override;
+    void BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target) override;
 
     UnitAI* i_AI, *i_disabledAI;
 
@@ -2627,6 +2715,9 @@ private:
     [[nodiscard]] float GetCombatRatingReduction(CombatRating cr) const;
     [[nodiscard]] uint32 GetCombatRatingDamageReduction(CombatRating cr, float rate, float cap, uint32 damage) const;
 
+    void PatchValuesUpdate(ByteBuffer& valuesUpdateBuf, BuildValuesCachePosPointers& posPointers, Player* target);
+    void InvalidateValuesUpdateCache() { _valuesUpdateCache.clear(); }
+
 protected:
     void SetFeared(bool apply, Unit* fearedBy = nullptr, bool isFear = false);
     void SetConfused(bool apply);
@@ -2664,6 +2755,9 @@ private:
     uint32 _lastExtraAttackSpell;
     std::unordered_map<ObjectGuid /*guid*/, uint32 /*count*/> extraAttacksTargets;
     ObjectGuid _lastDamagedTargetGuid;
+
+    typedef std::unordered_map<uint64 /*visibleFlag(uint32) + updateType(uint8)*/, BuildValuesCachedBuffer>  ValuesUpdateCache;
+    ValuesUpdateCache _valuesUpdateCache;
 };
 
 namespace Acore
@@ -2721,17 +2815,6 @@ namespace Acore
         bool const _ascending;
     };
 }
-
-class ConflagrateAuraStateDelayEvent : public BasicEvent
-{
-public:
-    ConflagrateAuraStateDelayEvent(Unit* owner, ObjectGuid casterGUID) : BasicEvent(), m_owner(owner), m_casterGUID(casterGUID) { }
-    bool Execute(uint64 e_time, uint32 p_time) override;
-
-private:
-    Unit* m_owner;
-    ObjectGuid m_casterGUID;
-};
 
 class RedirectSpellEvent : public BasicEvent
 {

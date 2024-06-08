@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -19,17 +19,15 @@ DROP TABLE IF EXISTS `playercreateinfo_cast_spell`;
 CREATE TABLE IF NOT EXISTS `playercreateinfo_cast_spell` (
   `raceMask` int unsigned NOT NULL DEFAULT '0',
   `classMask` int unsigned NOT NULL DEFAULT '0',
-  `spell` mediumint unsigned NOT NULL DEFAULT '0',
-  `note` varchar(255) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+  `spell` int unsigned NOT NULL DEFAULT '0',
+  `note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.playercreateinfo_cast_spell: 2 rows
+-- Dumping data for table acore_world.playercreateinfo_cast_spell: ~2 rows (approximately)
 DELETE FROM `playercreateinfo_cast_spell`;
-/*!40000 ALTER TABLE `playercreateinfo_cast_spell` DISABLE KEYS */;
 INSERT INTO `playercreateinfo_cast_spell` (`raceMask`, `classMask`, `spell`, `note`) VALUES
 	(0, 32, 48266, 'Death Knight - Blood Presence'),
 	(0, 1, 2457, 'Warrior - Battle Stance');
-/*!40000 ALTER TABLE `playercreateinfo_cast_spell` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

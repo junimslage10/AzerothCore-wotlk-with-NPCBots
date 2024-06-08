@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -20,11 +20,10 @@ CREATE TABLE IF NOT EXISTS `gtregenhpperspt_dbc` (
   `ID` int NOT NULL DEFAULT '0',
   `Data` float NOT NULL DEFAULT '0',
   PRIMARY KEY (`ID`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.gtregenhpperspt_dbc: 1,100 rows
+-- Dumping data for table acore_world.gtregenhpperspt_dbc: ~1 100 rows (approximately)
 DELETE FROM `gtregenhpperspt_dbc`;
-/*!40000 ALTER TABLE `gtregenhpperspt_dbc` DISABLE KEYS */;
 INSERT INTO `gtregenhpperspt_dbc` (`ID`, `Data`) VALUES
 	(0, 1.5),
 	(1, 1.38679),
@@ -1126,7 +1125,6 @@ INSERT INTO `gtregenhpperspt_dbc` (`ID`, `Data`) VALUES
 	(1097, 0.0625),
 	(1098, 0.0625),
 	(1099, 0.0625);
-/*!40000 ALTER TABLE `gtregenhpperspt_dbc` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

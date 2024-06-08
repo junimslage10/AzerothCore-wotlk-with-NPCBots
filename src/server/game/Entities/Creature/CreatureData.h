@@ -72,15 +72,19 @@ enum CreatureFlagsExtra : uint32
     CREATURE_FLAG_EXTRA_NO_DODGE                        = 0x00800000,   // xinef: target cannot dodge
     CREATURE_FLAG_EXTRA_MODULE                          = 0x01000000,
     CREATURE_FLAG_EXTRA_DONT_CALL_ASSISTANCE            = 0x02000000,   // Prevent creatures from calling for assistance on initial aggro
-    CREATURE_FLAG_DONT_OVERRIDE_ENTRY_SAI               = 0x04000000,   // Load both ENTRY and GUID specific SAI
-    CREATURE_FLAG_EXTRA_NPCBOT                          = 0x04000000,   // custom flag for NPCBots (not confirmed safe)
-    CREATURE_FLAG_EXTRA_NPCBOT_PET                      = 0x08000000,   // custom flag for NPCBot pets (not confirmed safe)
+    CREATURE_FLAG_EXTRA_IGNORE_ALL_ASSISTANCE_CALLS     = 0x04000000,   // Prevents creature from responding to assistance calls
+    CREATURE_FLAG_DONT_OVERRIDE_ENTRY_SAI               = 0x08000000,   // Load both ENTRY and GUID specific SAI
     CREATURE_FLAG_EXTRA_DUNGEON_BOSS                    = 0x10000000,   // creature is a dungeon boss (SET DYNAMICALLY, DO NOT ADD IN DB)
     CREATURE_FLAG_EXTRA_IGNORE_PATHFINDING              = 0x20000000,   // creature ignore pathfinding
     CREATURE_FLAG_EXTRA_IMMUNITY_KNOCKBACK              = 0x40000000,   // creature is immune to knockback effects
     CREATURE_FLAG_EXTRA_HARD_RESET                      = 0x80000000,
 
     // Masks
+    //npcbot
+    CREATURE_FLAG_EXTRA_NPCBOT                          = (CREATURE_FLAG_EXTRA_HARD_RESET | CREATURE_FLAG_EXTRA_DONT_CALL_ASSISTANCE | CREATURE_FLAG_DONT_OVERRIDE_ENTRY_SAI | CREATURE_FLAG_EXTRA_IGNORE_ALL_ASSISTANCE_CALLS),
+    CREATURE_FLAG_EXTRA_NPCBOT_PET                      = (CREATURE_FLAG_EXTRA_HARD_RESET | CREATURE_FLAG_EXTRA_DONT_CALL_ASSISTANCE | CREATURE_FLAG_DONT_OVERRIDE_ENTRY_SAI),
+    //end npcbot
+
     CREATURE_FLAG_EXTRA_UNUSED                          = (CREATURE_FLAG_EXTRA_UNUSED_12), // SKIP
 
     CREATURE_FLAG_EXTRA_DB_ALLOWED                      = (0xFFFFFFFF & ~(CREATURE_FLAG_EXTRA_UNUSED | CREATURE_FLAG_EXTRA_DUNGEON_BOSS)) // SKIP
@@ -244,6 +248,21 @@ struct CreatureTemplate
     [[nodiscard]] uint32  GetFirstValidModelId() const;
 
     // helpers
+    //npcbot
+    bool IsNPCBot() const
+    {
+        return (flags_extra & CREATURE_FLAG_EXTRA_NPCBOT) == CREATURE_FLAG_EXTRA_NPCBOT;
+    }
+    bool IsNPCBotPet() const
+    {
+        return (flags_extra & CREATURE_FLAG_EXTRA_NPCBOT) == CREATURE_FLAG_EXTRA_NPCBOT_PET;
+    }
+    bool IsNPCBotOrPet() const
+    {
+        return IsNPCBot() || IsNPCBotPet();
+    }
+    //end npcbot
+
     [[nodiscard]] SkillType GetRequiredLootSkill() const
     {
         if (type_flags & CREATURE_TYPE_FLAG_SKIN_WITH_HERBALISM)
@@ -293,7 +312,7 @@ struct CreatureBaseStats
 {
     uint32 BaseHealth[MAX_EXPANSIONS];
     uint32 BaseMana;
-    uint32 BaseArmor;
+    float  BaseArmor;
     uint32 AttackPower;
     uint32 RangedAttackPower;
     float BaseDamage[MAX_EXPANSIONS];
@@ -314,9 +333,9 @@ struct CreatureBaseStats
         return uint32(std::ceil(BaseMana * info->ModMana));
     }
 
-    uint32 GenerateArmor(CreatureTemplate const* info) const
+    float GenerateArmor(CreatureTemplate const* info) const
     {
-        return uint32(std::ceil(BaseArmor * info->ModArmor));
+        return std::ceil(BaseArmor * info->ModArmor);
     }
 
     float GenerateBaseDamage(CreatureTemplate const* info) const
@@ -382,7 +401,6 @@ struct CreatureData
     uint32 dynamicflags{0};
     uint32 ScriptId;
     bool dbData{true};
-    bool overwrittenZ{false};
 };
 
 struct CreatureModelInfo

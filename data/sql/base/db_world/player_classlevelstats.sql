@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -22,11 +22,10 @@ CREATE TABLE IF NOT EXISTS `player_classlevelstats` (
   `basehp` int unsigned NOT NULL DEFAULT '1',
   `basemana` int unsigned NOT NULL DEFAULT '1',
   PRIMARY KEY (`class`,`level`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 PACK_KEYS=0 COMMENT='Stores levels stats.';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci PACK_KEYS=0 COMMENT='Stores levels stats.';
 
--- Dumping data for table acore_world.player_classlevelstats: 746 rows
+-- Dumping data for table acore_world.player_classlevelstats: ~746 rows (approximately)
 DELETE FROM `player_classlevelstats`;
-/*!40000 ALTER TABLE `player_classlevelstats` DISABLE KEYS */;
 INSERT INTO `player_classlevelstats` (`class`, `level`, `basehp`, `basemana`) VALUES
 	(1, 1, 20, 0),
 	(1, 2, 29, 0),
@@ -774,7 +773,6 @@ INSERT INTO `player_classlevelstats` (`class`, `level`, `basehp`, `basemana`) VA
 	(11, 78, 6423, 3270),
 	(11, 79, 6902, 3383),
 	(11, 80, 7417, 3496);
-/*!40000 ALTER TABLE `player_classlevelstats` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

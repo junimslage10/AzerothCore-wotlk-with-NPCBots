@@ -28,7 +28,6 @@
 #include "GameObjectAI.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "InstanceScript.h"
 #include "Log.h"
@@ -55,6 +54,12 @@
 #include "Vehicle.h"
 #include "World.h"
 #include "WorldPacket.h"
+
+/// @todo: this import is not necessary for compilation and marked as unused by the IDE
+//  however, for some reasons removing it would cause a damn linking issue
+//  there is probably some underlying problem with imports which should properly addressed
+//  see: https://github.com/azerothcore/azerothcore-wotlk/issues/9766
+#include "GridNotifiersImpl.h"
 
 //npcbot
 #include "botmgr.h"
@@ -567,7 +572,7 @@ Spell::Spell(Unit* caster, SpellInfo const* info, TriggerCastFlags triggerFlags,
 /*
     m_spellInfo(sSpellMgr->GetSpellForDifficultyFromSpell(info, caster)),
 */
-    m_spellInfo(sSpellMgr->GetSpellForDifficultyFromSpell(info, caster)->TryGetSpellInfoOverride(caster)),
+    m_spellInfo((caster->IsNPCBot() ? info : sSpellMgr->GetSpellForDifficultyFromSpell(info, caster))->TryGetSpellInfoOverride(caster)),
 //end npcbot
     m_caster((info->HasAttribute(SPELL_ATTR6_ORIGINATE_FROM_CONTROLLER) && caster->GetCharmerOrOwner()) ? caster->GetCharmerOrOwner() : caster)
     , m_spellValue(new SpellValue(m_spellInfo)), _spellEvent(nullptr)
@@ -1435,16 +1440,16 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                 uint32 mapid = m_caster->GetMapId();
                 uint32 phasemask = m_caster->GetPhaseMask();
                 float collisionHeight = m_caster->GetCollisionHeight();
-                float destx = 0.0f, desty = 0.0f, destz = 0.0f, ground = 0.0f, startx = 0.0f, starty = 0.0f, startz = 0.0f, starto = 0.0f;
+                float destz = 0.0f, startx = 0.0f, starty = 0.0f, startz = 0.0f, starto = 0.0f;
 
                 Position pos;
                 Position lastpos;
                 m_caster->GetPosition(startx, starty, startz, starto);
                 pos.Relocate(startx, starty, startz, starto);
-                destx = pos.GetPositionX() + distance * cos(pos.GetOrientation());
-                desty = pos.GetPositionY() + distance * sin(pos.GetOrientation());
+                float destx = pos.GetPositionX() + distance * cos(pos.GetOrientation());
+                float desty = pos.GetPositionY() + distance * sin(pos.GetOrientation());
 
-                ground = map->GetHeight(phasemask, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
+                float ground = map->GetHeight(phasemask, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
 
                 bool isCasterInWater = m_caster->IsInWater();
                 if (!m_caster->HasUnitMovementFlag(MOVEMENTFLAG_FALLING) || (pos.GetPositionZ() - ground < distance))
@@ -1609,6 +1614,15 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                                 destz = prevZ;
                             //LOG_ERROR("spells", "(collision) destZ rewrited in prevZ");
 
+                            // Don't make the player move backward from the xy adjustments by collisions.
+                            if ((DELTA_X > 0 && startx > destx) || (DELTA_X < 0 && startx < destx) ||
+                                (DELTA_Y > 0 && starty > desty) || (DELTA_Y < 0 && starty < desty))
+                            {
+                                destx = startx;
+                                desty = starty;
+                                destz = startz;
+                            }
+
                             break;
                         }
                         // we have correct destz now
@@ -1620,9 +1634,9 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                 else
                 {
                     float z = pos.GetPositionZ();
-                    bool col = VMAP::VMapFactory::createOrGetVMapMgr()->GetObjectHitPos(mapid, pos.GetPositionX(), pos.GetPositionY(), z + 0.5f, destx, desty, z + 0.5f, destx, desty, z, -0.5f);
+                    bool col = VMAP::VMapFactory::createOrGetVMapMgr()->GetObjectHitPos(mapid, pos.GetPositionX(), pos.GetPositionY(), z, destx, desty, z, destx, desty, z, -0.5f);
                     // check dynamic collision
-                    bool dcol = m_caster->GetMap()->GetObjectHitPos(phasemask, pos.GetPositionX(), pos.GetPositionY(), z + 0.5f, destx, desty, z + 0.5f, destx, desty, z, -0.5f);
+                    bool dcol = m_caster->GetMap()->GetObjectHitPos(phasemask, pos.GetPositionX(), pos.GetPositionY(), z, destx, desty, z, destx, desty, z, -0.5f);
 
                     // collision occured
                     if (col || dcol)
@@ -2380,11 +2394,11 @@ void Spell::prepareDataForTriggerSystem(AuraEffect const* /*triggeredByAura*/)
     // Ranged autorepeat attack is set as triggered spell - ignore it
     if (!(m_procAttacker & PROC_FLAG_DONE_RANGED_AUTO_ATTACK))
     {
-        if (_triggeredCastFlags & TRIGGERED_DISALLOW_PROC_EVENTS &&
+        if (HasTriggeredCastFlag(TRIGGERED_DISALLOW_PROC_EVENTS) &&
                 (m_spellInfo->HasAttribute(SPELL_ATTR2_ACTIVE_THREAT) ||
                  m_spellInfo->HasAttribute(SPELL_ATTR3_NOT_A_PROC)))
             m_procEx |= PROC_EX_INTERNAL_CANT_PROC;
-        else if (_triggeredCastFlags & TRIGGERED_DISALLOW_PROC_EVENTS)
+        else if (HasTriggeredCastFlag(TRIGGERED_DISALLOW_PROC_EVENTS))
             m_procEx |= PROC_EX_INTERNAL_TRIGGERED;
     }
     // Totem casts require spellfamilymask defined in spell_proc_event to proc
@@ -3116,6 +3130,13 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
                 m_caster->SetContestedPvP();
                 if (m_caster->GetTypeId() == TYPEID_PLAYER && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
                     m_caster->ToPlayer()->UpdatePvP(true);
+                //npcbot: bot assist case
+                else if (m_caster->IsNPCBotOrPet() && m_caster->ToCreature()->IsFreeBot())
+                {
+                    if (Unit const* bot = m_caster->IsNPCBotPet() ? m_caster->ToUnit()->GetCreator() : m_caster->ToUnit())
+                        BotMgr::SetBotContestedPvP(bot->ToCreature());
+                }
+                //end npcbot
             }
 
             // xinef: triggered spells should not prolong combat
@@ -3156,6 +3177,10 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
             {
                 unit->IncrDiminishing(m_diminishGroup);
             }
+            //npcbot
+            else if (m_caster->IsNPCBotOrPet())
+                unit->IncrDiminishing(m_diminishGroup);
+            //end npcbot
         }
     }
 
@@ -3188,7 +3213,7 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
         if (m_originalCaster)
         {
             bool refresh = false;
-            bool refreshPeriodic = m_spellInfo->StackAmount < 2 && !(_triggeredCastFlags & TRIGGERED_NO_PERIODIC_RESET);
+            bool refreshPeriodic = m_spellInfo->StackAmount < 2 && !HasTriggeredCastFlag(TRIGGERED_NO_PERIODIC_RESET);
             m_spellAura = Aura::TryRefreshStackOrCreate(aurSpellInfo, effectMask, unit, m_originalCaster,
                           (aurSpellInfo == m_spellInfo) ? &m_spellValue->EffectBasePoints[0] : &basePoints[0], m_CastItem, ObjectGuid::Empty, &refresh, refreshPeriodic);
 
@@ -3527,7 +3552,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     }
 
     // Fill aura scaling information
-    if (sScriptMgr->CanScalingEverything(this) || m_caster->IsTotem() || (m_caster->IsControlledByPlayer() && !m_spellInfo->IsPassive() && m_spellInfo->SpellLevel && !m_spellInfo->IsChanneled() && !(_triggeredCastFlags & TRIGGERED_IGNORE_AURA_SCALING)))
+    if (sScriptMgr->CanScalingEverything(this) || m_caster->IsTotem() || (m_caster->IsControlledByPlayer() && !m_spellInfo->IsPassive() && m_spellInfo->SpellLevel && !m_spellInfo->IsChanneled() && !HasTriggeredCastFlag(TRIGGERED_IGNORE_AURA_SCALING)))
     {
         for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         {
@@ -3568,7 +3593,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     }
 
     //Prevent casting at cast another spell (ServerSide check)
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS) && m_caster->IsNonMeleeSpellCast(false, true, true, m_spellInfo->Id == 75) && m_cast_count)
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_CAST_IN_PROGRESS) && m_caster->IsNonMeleeSpellCast(false, true, true, m_spellInfo->Id == 75) && m_cast_count)
     {
         SendCastResult(SPELL_FAILED_SPELL_IN_PROGRESS);
         finish(false);
@@ -3582,7 +3607,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     m_powerCost = m_CastItem ? 0 : m_spellInfo->CalcPowerCost(m_caster, m_spellSchoolMask, this);
 
     // Set combo point requirement
-    if ((_triggeredCastFlags & TRIGGERED_IGNORE_COMBO_POINTS) || m_CastItem)
+    if (HasTriggeredCastFlag(TRIGGERED_IGNORE_COMBO_POINTS) || m_CastItem)
         m_needComboPoints = false;
 
     SpellCastResult result = CheckCast(true);
@@ -3612,7 +3637,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     prepareDataForTriggerSystem(triggeredByAura);
 
     // calculate cast time (calculated after first CheckCast check to prevent charge counting for first CheckCast fail)
-    m_casttime = (_triggeredCastFlags & TRIGGERED_CAST_DIRECTLY) ? 0 : m_spellInfo->CalcCastTime(m_caster, this);
+    m_casttime = HasTriggeredCastFlag(TRIGGERED_CAST_DIRECTLY) ? 0 : m_spellInfo->CalcCastTime(m_caster, this);
 
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
         if (m_caster->ToPlayer()->GetCommandStatus(CHEAT_CASTTIME))
@@ -3696,19 +3721,22 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
 
     if (!(m_spellInfo->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED) && !(m_spellInfo->Attributes & SPELL_ATTR0_ALLOW_WHILE_SITTING) && !m_triggeredByAuraSpell && m_caster->IsSitState())
     {
+        //npcbot
+        if (!m_originalCaster || m_caster == m_originalCaster)
+        //end npcbot
         m_caster->SetStandState(UNIT_STAND_STATE_STAND);
     }
 
     //Containers for channeled spells have to be set
     //TODO:Apply this to all casted spells if needed
     // Why check duration? 29350: channelled triggers channelled
-    if ((_triggeredCastFlags & TRIGGERED_CAST_DIRECTLY) && (!m_spellInfo->IsChanneled() || !m_spellInfo->GetMaxDuration()))
+    if (HasTriggeredCastFlag(TRIGGERED_CAST_DIRECTLY) && (!m_spellInfo->IsChanneled() || !m_spellInfo->GetMaxDuration()))
         cast(true);
     else
     {
         // stealth must be removed at cast starting (at show channel bar)
         // skip triggered spell (item equip spell casting and other not explicit character casts/item uses)
-        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_AURA_INTERRUPT_FLAGS) && m_spellInfo->IsBreakingStealth())
+        if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_AURA_INTERRUPT_FLAGS) && m_spellInfo->IsBreakingStealth())
         {
             // Farsight spells exception
             uint32 exceptSpellId = 0;
@@ -3725,7 +3753,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
         SendSpellStart();
 
         // set target for proper facing
-        if ((m_casttime || m_spellInfo->IsChanneled()) && !(_triggeredCastFlags & TRIGGERED_IGNORE_SET_FACING))
+        if ((m_casttime || m_spellInfo->IsChanneled()) && !HasTriggeredCastFlag(TRIGGERED_IGNORE_SET_FACING))
         {
             if (m_caster->GetTypeId() == TYPEID_UNIT && !m_caster->ToCreature()->IsInEvadeMode() &&
                     ((m_targets.GetObjectTarget() && m_caster != m_targets.GetObjectTarget()) || m_spellInfo->IsPositive()))
@@ -3750,7 +3778,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
         if (!m_casttime && /*!m_castItemGUID &&*/ GetCurrentContainer() == CURRENT_GENERIC_SPELL)
             cast(true);
 
-        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_GCD))
+        if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_GCD))
             TriggerGlobalCooldown();
     }
 
@@ -3894,7 +3922,7 @@ void Spell::_cast(bool skipCheck)
 
     SetExecutedCurrently(true);
 
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_SET_FACING))
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_SET_FACING))
         if (m_caster->GetTypeId() == TYPEID_UNIT && m_targets.GetObjectTarget() && m_caster != m_targets.GetObjectTarget())
             m_caster->SetInFront(m_targets.GetObjectTarget());
 
@@ -3984,7 +4012,7 @@ void Spell::_cast(bool skipCheck)
 
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
     {
-        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_ITEM) && m_CastItem)
+        if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_CAST_ITEM) && m_CastItem)
         {
             m_caster->ToPlayer()->StartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_ITEM, m_CastItem->GetEntry());
             m_caster->ToPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_USE_ITEM, m_CastItem->GetEntry());
@@ -3993,7 +4021,7 @@ void Spell::_cast(bool skipCheck)
         m_caster->ToPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL, m_spellInfo->Id, 0, (m_targets.GetUnitTarget() ? m_targets.GetUnitTarget() : m_caster));
     }
 
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_POWER_AND_REAGENT_COST))
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST))
     {
         // Powers have to be taken before SendSpellGo
         TakePower();
@@ -4417,7 +4445,7 @@ void Spell::SendSpellCooldown()
     // xinef: properly add creature cooldowns
     if (m_caster->GetTypeId() != TYPEID_PLAYER)
     {
-        if (!(_triggeredCastFlags & TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD))
+        if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD))
         {
             // xinef: this should be added here
             //m_caster->AddSpellCooldown(m_spellInfo->Id, 0, 0);
@@ -4448,7 +4476,7 @@ void Spell::SendSpellCooldown()
     }
 
     // have infinity cooldown but set at aura apply                  // do not set cooldown for triggered spells (needed by reincarnation)
-    if (m_spellInfo->IsCooldownStartedOnEvent() || m_spellInfo->IsPassive() || ((_triggeredCastFlags & TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) && !m_CastItem))
+    if (m_spellInfo->IsCooldownStartedOnEvent() || m_spellInfo->IsPassive() || (HasTriggeredCastFlag(TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) && !m_CastItem))
         return;
 
     _player->AddSpellAndCategoryCooldowns(m_spellInfo, m_CastItem ? m_CastItem->GetEntry() : 0, this);
@@ -4517,6 +4545,11 @@ void Spell::update(uint32 difftime)
                     SendChannelUpdate(0);
 
                     finish();
+
+                    //npcbot: signal channel finish to botmgr
+                    if (m_caster->IsNPCBot())
+                        BotMgr::OnBotChannelFinish(m_caster->ToUnit(), this);
+                    //end npcbot
                 }
                 // Xinef: Dont update channeled target list on last tick, allow auras to update duration properly
                 // Xinef: Added this strange check because of diffrent update routines for players / creatures
@@ -4527,6 +4560,11 @@ void Spell::update(uint32 difftime)
                     LOG_DEBUG("spells.aura", "Channeled spell {} is removed due to lack of targets", m_spellInfo->Id);
                     SendChannelUpdate(0);
                     finish();
+
+                    //npcbot: signal channel finish to botmgr
+                    if (m_caster->IsNPCBot())
+                        BotMgr::OnBotChannelFinish(m_caster->ToUnit(), this);
+                    //end npcbot
                 }
                 break;
             }
@@ -4563,6 +4601,11 @@ void Spell::finish(bool ok)
     if (Creature* creatureCaster = m_caster->ToCreature())
         creatureCaster->ReleaseFocus(this);
 
+    //npcbot
+    if (!ok && m_caster->IsNPCBotOrPet())
+        BotMgr::OnBotSpellGo(m_caster, this, false);
+    //end npcbot
+
     if (!ok)
     {
         if (m_caster->GetTypeId() == TYPEID_PLAYER)
@@ -4589,7 +4632,7 @@ void Spell::finish(bool ok)
         if (spellInfo && spellInfo->SpellIconID == 2056)
         {
             LOG_DEBUG("spells.aura", "Statue {} is unsummoned in spell {} finish", m_caster->GetGUID().ToString(), m_spellInfo->Id);
-            m_caster->setDeathState(JUST_DIED);
+            m_caster->setDeathState(DeathState::JustDied);
             return;
         }
     }
@@ -4743,7 +4786,7 @@ void Spell::SendCastResult(SpellCastResult result)
         return;
 
     // Xinef: override every possible result, except for gm fail result... breaks many things and goes unnoticed because of this and makes me rage when i find this out
-    if ((_triggeredCastFlags & TRIGGERED_DONT_REPORT_CAST_ERROR) && result != SPELL_FAILED_BM_OR_INVISGOD)
+    if (HasTriggeredCastFlag(TRIGGERED_DONT_REPORT_CAST_ERROR) && result != SPELL_FAILED_BM_OR_INVISGOD)
         result = SPELL_FAILED_DONT_REPORT;
 
     SendCastResult(m_caster->ToPlayer(), m_spellInfo, m_cast_count, result, m_customError);
@@ -4777,7 +4820,7 @@ void Spell::SendSpellStart()
 
     uint32 castFlags = CAST_FLAG_HAS_TRAJECTORY;
 
-    if (((IsTriggered() && !m_spellInfo->IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell) && !m_cast_count && !m_spellInfo->IsChanneled())
+    if (((IsTriggered() && !m_spellInfo->IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell) && !m_cast_count && !(m_spellInfo->IsChanneled() || (m_spellInfo->CastTimeEntry && m_spellInfo->CastTimeEntry->CastTime > 0)))
         castFlags |= CAST_FLAG_PENDING;
 
     if (m_spellInfo->HasAttribute(SPELL_ATTR0_USES_RANGED_SLOT) || m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NEEDS_AMMO_DATA))
@@ -4859,7 +4902,7 @@ void Spell::SendSpellGo()
     uint32 castFlags = CAST_FLAG_UNKNOWN_9;
 
     // triggered spells with spell visual != 0
-    if (((IsTriggered() && !m_spellInfo->IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell) && !m_cast_count && !m_spellInfo->IsChanneled())
+    if (((IsTriggered() && !m_spellInfo->IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell) && !m_cast_count && !(m_spellInfo->IsChanneled() || (m_spellInfo->CastTimeEntry && m_spellInfo->CastTimeEntry->CastTime > 0)))
         castFlags |= CAST_FLAG_PENDING;
 
     if (m_spellInfo->HasAttribute(SPELL_ATTR0_USES_RANGED_SLOT) || m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NEEDS_AMMO_DATA))
@@ -4885,7 +4928,7 @@ void Spell::SendSpellGo()
     }
 
     if ((m_caster->GetTypeId() == TYPEID_PLAYER)
-            && (m_caster->getClass() == CLASS_DEATH_KNIGHT)
+            && (m_caster->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
             && m_spellInfo->RuneCostID
             && m_spellInfo->PowerType == POWER_RUNE)
     {
@@ -5020,11 +5063,11 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
         {
             if (uint32 item_id = m_caster->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i))
             {
-                if (ItemTemplate const* itemEntry = sObjectMgr->GetItemTemplate(item_id))
+                if (ItemEntry const* itemEntry = sItemStore.LookupEntry(item_id))
                 {
-                    if (itemEntry->Class == ITEM_CLASS_WEAPON)
+                    if (itemEntry->ClassID == ITEM_CLASS_WEAPON)
                     {
-                        switch (itemEntry->SubClass)
+                        switch (itemEntry->SubclassID)
                         {
                             case ITEM_SUBCLASS_WEAPON_THROWN:
                                 ammoDisplayID = itemEntry->DisplayInfoID;
@@ -5309,7 +5352,7 @@ void Spell::TakeCastItem()
         return;
 
     // not remove cast item at triggered spell (equipping, weapon damage, etc)
-    if (_triggeredCastFlags & TRIGGERED_IGNORE_CAST_ITEM)
+    if (HasTriggeredCastFlag(TRIGGERED_IGNORE_CAST_ITEM))
         return;
 
     ItemTemplate const* proto = m_CastItem->GetTemplate();
@@ -5504,7 +5547,7 @@ SpellCastResult Spell::CheckRuneCost(uint32 RuneCostID)
         return SPELL_CAST_OK;
     }
 
-    if (player->getClass() != CLASS_DEATH_KNIGHT)
+    if (!player->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
         return SPELL_CAST_OK;
 
     SpellRuneCostEntry const* src = sSpellRuneCostStore.LookupEntry(RuneCostID);
@@ -5545,7 +5588,7 @@ SpellCastResult Spell::CheckRuneCost(uint32 RuneCostID)
 
 void Spell::TakeRunePower(bool didHit)
 {
-    if (m_caster->GetTypeId() != TYPEID_PLAYER || m_caster->getClass() != CLASS_DEATH_KNIGHT)
+    if (m_caster->GetTypeId() != TYPEID_PLAYER || !m_caster->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
         return;
 
     SpellRuneCostEntry const* runeCostData = sSpellRuneCostStore.LookupEntry(m_spellInfo->RuneCostID);
@@ -5755,10 +5798,10 @@ SpellCastResult Spell::CheckCast(bool strict)
         if (m_caster->GetTypeId() == TYPEID_PLAYER)
         {
             //can cast triggered (by aura only?) spells while have this flag
-            if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_AURASTATE) && m_caster->ToPlayer()->HasPlayerFlag(PLAYER_ALLOW_ONLY_ABILITY))
+            if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_AURASTATE) && m_caster->ToPlayer()->HasPlayerFlag(PLAYER_ALLOW_ONLY_ABILITY))
                 return SPELL_FAILED_SPELL_IN_PROGRESS;
 
-            if (!(_triggeredCastFlags & TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) && m_caster->ToPlayer()->HasSpellCooldown(m_spellInfo->Id))
+            if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) && m_caster->ToPlayer()->HasSpellCooldown(m_spellInfo->Id))
             {
                 if (m_triggeredByAuraSpell)
                     return SPELL_FAILED_DONT_REPORT;
@@ -5774,8 +5817,7 @@ SpellCastResult Spell::CheckCast(bool strict)
             return SPELL_FAILED_NOT_READY;
 
         //npcbot
-        if (m_caster->IsNPCBot() &&
-            m_caster->ToCreature()->HasSpellCooldown(m_spellInfo->Id))
+        if (m_caster->IsNPCBot() && m_caster->ToCreature()->HasSpellCooldown(m_spellInfo->Id) && !IsIgnoringCooldowns())
         {
             //TC_LOG_ERROR("spells", "%s has cd of %u on %s", m_caster->GetName().c_str(), m_caster->ToCreature()->GetCreatureSpellCooldownDelay(m_spellInfo->Id), m_spellInfo->SpellName[0]);
             if (m_triggeredByAuraSpell)
@@ -5793,7 +5835,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     }
 
     // Check global cooldown
-    if (strict && !(_triggeredCastFlags & TRIGGERED_IGNORE_GCD) && HasGlobalCooldown())
+    if (strict && !HasTriggeredCastFlag(TRIGGERED_IGNORE_GCD) && HasGlobalCooldown())
         return SPELL_FAILED_NOT_READY;
 
     // only triggered spells can be processed an ended battleground
@@ -5815,7 +5857,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
     // only check at first call, Stealth auras are already removed at second call
     // for now, ignore triggered spells
-    if (strict && !(_triggeredCastFlags & TRIGGERED_IGNORE_SHAPESHIFT))
+    if (strict && !HasTriggeredCastFlag(TRIGGERED_IGNORE_SHAPESHIFT))
     {
         bool checkForm = true;
         // Ignore form req aura
@@ -5861,7 +5903,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
     // caster state requirements
     // not for triggered spells (needed by execute)
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_AURASTATE))
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_AURASTATE))
     {
         if (m_spellInfo->CasterAuraState && !m_caster->HasAuraState(AuraStateType(m_spellInfo->CasterAuraState), m_spellInfo, m_caster))
             return SPELL_FAILED_CASTER_AURASTATE;
@@ -5911,7 +5953,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     }
 
     Vehicle* vehicle = m_caster->GetVehicle();
-    if (vehicle && !(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE))
+    if (vehicle && !HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE))
     {
         uint16 checkMask = 0;
         for (uint8 effIndex = EFFECT_0; effIndex < MAX_SPELL_EFFECTS; ++effIndex)
@@ -6111,7 +6153,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     }
 
     // not let players cast spells at mount (and let do it to creatures)
-    if (m_caster->IsMounted() && m_caster->GetTypeId() == TYPEID_PLAYER && !(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE) &&
+    if (m_caster->IsMounted() && m_caster->GetTypeId() == TYPEID_PLAYER && !HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE) &&
             !m_spellInfo->IsPassive() && !m_spellInfo->HasAttribute(SPELL_ATTR0_ALLOW_WHILE_MOUNTED))
     {
         if (m_caster->IsInFlight())
@@ -6141,7 +6183,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     if (castResult != SPELL_CAST_OK)
         return castResult;
 
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_POWER_AND_REAGENT_COST))
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST))
     {
         castResult = CheckPower();
         if (castResult != SPELL_CAST_OK)
@@ -6149,9 +6191,9 @@ SpellCastResult Spell::CheckCast(bool strict)
     }
 
     // xinef: do not skip triggered spells if they posses prevention type (eg. Bladestorm vs Hand of Protection)
-    if (!(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_AURAS) || (m_spellInfo->PreventionType > SPELL_PREVENTION_TYPE_NONE && m_triggeredByAuraSpell && m_triggeredByAuraSpell.spellInfo->IsPositive()))
+    if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_AURAS) || (m_spellInfo->PreventionType > SPELL_PREVENTION_TYPE_NONE && m_triggeredByAuraSpell && m_triggeredByAuraSpell.spellInfo->IsPositive()))
     {
-        castResult = CheckCasterAuras(_triggeredCastFlags & TRIGGERED_IGNORE_CASTER_AURAS);
+        castResult = CheckCasterAuras(HasTriggeredCastFlag(TRIGGERED_IGNORE_CASTER_AURAS));
         if (castResult != SPELL_CAST_OK)
             return castResult;
 
@@ -6207,7 +6249,8 @@ SpellCastResult Spell::CheckCast(bool strict)
             }
 
             DispelChargesList dispelList;
-            target->GetDispellableAuraList(m_caster, dispelMask, dispelList);
+            target->GetDispellableAuraList(m_caster, dispelMask, dispelList, m_spellInfo);
+
             if (dispelList.empty())
                 return SPELL_FAILED_NOTHING_TO_DISPEL;
         }
@@ -6218,23 +6261,6 @@ SpellCastResult Spell::CheckCast(bool strict)
         // for effects of spells that have only one target
         switch (m_spellInfo->Effects[i].Effect)
         {
-            case SPELL_EFFECT_DUMMY:
-                {
-                    if (m_spellInfo->SpellFamilyName == SPELLFAMILY_DEATHKNIGHT)
-                    {
-                        // Raise Ally
-                        if( m_spellInfo->Id == 61999 )
-                        {
-                            Unit* target = m_targets.GetUnitTarget();
-                            if (!target)
-                                return SPELL_FAILED_BAD_TARGETS;
-
-                            if (target->IsAlive()) // not discovered attributeEx5?
-                                return SPELL_FAILED_TARGET_NOT_DEAD;
-                        }
-                    }
-                    break;
-                }
             case SPELL_EFFECT_LEARN_SPELL:
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -6319,7 +6345,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     // Can be area effect, Check only for players and not check if target - caster (spell can have multiply drain/burn effects)
                     if (m_caster->GetTypeId() == TYPEID_PLAYER)
                         if (Unit* target = m_targets.GetUnitTarget())
-                            if (target != m_caster && target->getPowerType() != Powers(m_spellInfo->Effects[i].MiscValue))
+                            if (target != m_caster && !target->HasActivePowerType(Powers(m_spellInfo->Effects[i].MiscValue)))
                                 return SPELL_FAILED_BAD_TARGETS;
                     break;
                 }
@@ -6408,6 +6434,15 @@ SpellCastResult Spell::CheckCast(bool strict)
                     if (m_spellInfo->Effects[i].TargetA.GetTarget() != TARGET_GAMEOBJECT_TARGET &&
                             m_spellInfo->Effects[i].TargetA.GetTarget() != TARGET_GAMEOBJECT_ITEM_TARGET)
                         break;
+
+                //npcbot
+                if (m_caster->IsNPCBot())
+                {
+                    if (m_spellInfo->Effects[i].TargetA.GetTarget() == TARGET_GAMEOBJECT_TARGET && !m_targets.GetGOTarget())
+                        return SPELL_FAILED_BAD_TARGETS;
+                    break;
+                }
+                //end npcbot
 
                     if (m_caster->GetTypeId() != TYPEID_PLAYER  // only players can open locks, gather etc.
                             // we need a go target in case of TARGET_GAMEOBJECT_TARGET
@@ -6554,7 +6589,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                             return SPELL_FAILED_ALREADY_HAVE_CHARM;
                     }
 
-                    if (m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->getClass() == CLASS_WARLOCK && strict)
+                    if (m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->IsClass(CLASS_WARLOCK, CLASS_CONTEXT_PET) && strict)
                         if (Pet* pet = m_caster->ToPlayer()->GetPet())
                             pet->CastSpell(pet, 32752, true, nullptr, nullptr, pet->GetGUID()); //starting cast, trigger pet stun (cast by pet so it doesn't attack player)
 
@@ -6770,7 +6805,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                             return SPELL_FAILED_CHARMED;
 
                         //npcbot: do not allow to charm owned npcbots
-                        if (target->GetCreatorGUID() && target->GetCreatorGUID().IsPlayer())
+                        if (target->GetCreator() && target->GetCreator()->IsPlayer())
                             return SPELL_FAILED_TARGET_IS_PLAYER_CONTROLLED;
                         else if (target->IsNPCBotOrPet())
                             return SPELL_FAILED_CANT_BE_CHARMED;
@@ -6791,8 +6826,8 @@ SpellCastResult Spell::CheckCast(bool strict)
                 }
             case SPELL_AURA_MOUNTED:
                 {
-                    // Xinef: disallow casting in water for mounts not increasing water movement Speed
-                    if (m_caster->IsInWater() && !m_spellInfo->HasAura(SPELL_AURA_MOD_INCREASE_SWIM_SPEED))
+                    // Disallow casting flying mounts in water
+                    if (m_caster->IsInWater() && m_spellInfo->HasAura(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED))
                         return SPELL_FAILED_ONLY_ABOVEWATER;
 
                     // Ignore map check if spell have AreaId. AreaId already checked and this prevent special mount spells
@@ -6855,7 +6890,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     if (!m_targets.GetUnitTarget())
                         return SPELL_FAILED_BAD_IMPLICIT_TARGETS;
 
-                    if (m_targets.GetUnitTarget()->getPowerType() != POWER_MANA)
+                    if (!m_targets.GetUnitTarget()->HasActivePowerType(POWER_MANA))
                         return SPELL_FAILED_BAD_TARGETS;
 
                     break;
@@ -6942,7 +6977,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
 SpellCastResult Spell::CheckPetCast(Unit* target)
 {
-    if (m_caster->HasUnitState(UNIT_STATE_CASTING) && !(_triggeredCastFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS))              //prevent spellcast interruption by another spellcast
+    if (m_caster->HasUnitState(UNIT_STATE_CASTING) && !HasTriggeredCastFlag(TRIGGERED_IGNORE_CAST_IN_PROGRESS))              //prevent spellcast interruption by another spellcast
         return SPELL_FAILED_SPELL_IN_PROGRESS;
 
     // dead owner (pets still alive when owners ressed?)
@@ -7247,6 +7282,14 @@ SpellCastResult Spell::CheckRange(bool strict)
 
     if (GameObject* goTarget = m_targets.GetGOTarget())
     {
+        //npcbot
+        if (!m_caster->IsPlayer())
+        {
+            if (!goTarget->IsAtInteractDistance(*m_caster, m_spellInfo->GetMaxRange(m_spellInfo->IsPositive())))
+                return SPELL_FAILED_OUT_OF_RANGE;
+        }
+        else
+        //end npcbot
         if (!goTarget->IsAtInteractDistance(m_caster->ToPlayer(), m_spellInfo))
         {
             return SPELL_FAILED_OUT_OF_RANGE;
@@ -7411,7 +7454,7 @@ SpellCastResult Spell::CheckItems()
     else
     {
         // Xinef: this is not true in my opinion, in eg bladestorm will not be canceled after disarm
-        //if (!(_triggeredCastFlags & TRIGGERED_IGNORE_EQUIPPED_ITEM_REQUIREMENT))
+        //if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_EQUIPPED_ITEM_REQUIREMENT))
         if (m_caster->GetTypeId() == TYPEID_PLAYER && !m_caster->ToPlayer()->HasItemFitToSpellRequirements(m_spellInfo))
             return SPELL_FAILED_EQUIPPED_ITEM_CLASS;
     }
@@ -7419,7 +7462,7 @@ SpellCastResult Spell::CheckItems()
     // do not take reagents for these item casts
     if (!(m_CastItem && m_CastItem->GetTemplate()->Flags & ITEM_FLAG_NO_REAGENT_COST))
     {
-        bool checkReagents = !(_triggeredCastFlags & TRIGGERED_IGNORE_POWER_AND_REAGENT_COST) && !player->CanNoReagentCast(m_spellInfo);
+        bool checkReagents = !HasTriggeredCastFlag(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST) && !player->CanNoReagentCast(m_spellInfo);
         // Not own traded item (in trader trade slot) requires reagents even if triggered spell
         if (!checkReagents)
             if (Item* targetItem = m_targets.GetItemTarget())
@@ -7841,7 +7884,7 @@ SpellCastResult Spell::CheckItems()
     }
 
     // check weapon presence in slots for main/offhand weapons
-    if (/*never skip those checks !(_triggeredCastFlags & TRIGGERED_IGNORE_EQUIPPED_ITEM_REQUIREMENT) &&*/ m_spellInfo->EquippedItemClass >= 0)
+    if (/*never skip those checks !HasTriggeredCastFlag(TRIGGERED_IGNORE_EQUIPPED_ITEM_REQUIREMENT) &&*/ m_spellInfo->EquippedItemClass >= 0)
     {
         // main hand weapon required
         if (m_spellInfo->HasAttribute(SPELL_ATTR3_REQUIRES_MAIN_HAND_WEAPON))
@@ -8005,6 +8048,9 @@ bool Spell::UpdatePointers()
             return false;
     }
     else
+    //npcbot
+    if (!m_caster->IsNPCBot())
+    //end npcbot
         m_CastItem = nullptr;
 
     m_targets.Update(m_caster);
@@ -8197,7 +8243,7 @@ bool Spell::IsNextMeleeSwingSpell() const
 
 bool Spell::IsIgnoringCooldowns() const
 {
-    return (_triggeredCastFlags & TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) != 0;
+    return HasTriggeredCastFlag(TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD) != 0;
 }
 
 bool Spell::IsAutoActionResetSpell() const

@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,8 +17,8 @@
 -- Dumping structure for table acore_world.areatrigger_teleport
 DROP TABLE IF EXISTS `areatrigger_teleport`;
 CREATE TABLE IF NOT EXISTS `areatrigger_teleport` (
-  `ID` mediumint unsigned NOT NULL DEFAULT '0',
-  `Name` text,
+  `ID` int unsigned NOT NULL DEFAULT '0',
+  `Name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `target_map` smallint unsigned NOT NULL DEFAULT '0',
   `target_position_x` float NOT NULL DEFAULT '0',
   `target_position_y` float NOT NULL DEFAULT '0',
@@ -26,11 +26,10 @@ CREATE TABLE IF NOT EXISTS `areatrigger_teleport` (
   `target_orientation` float NOT NULL DEFAULT '0',
   PRIMARY KEY (`ID`),
   FULLTEXT KEY `name` (`Name`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED COMMENT='Trigger System';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Trigger System';
 
--- Dumping data for table acore_world.areatrigger_teleport: 273 rows
+-- Dumping data for table acore_world.areatrigger_teleport: ~274 rows (approximately)
 DELETE FROM `areatrigger_teleport`;
-/*!40000 ALTER TABLE `areatrigger_teleport` DISABLE KEYS */;
 INSERT INTO `areatrigger_teleport` (`ID`, `Name`, `target_map`, `target_position_x`, `target_position_y`, `target_position_z`, `target_orientation`) VALUES
 	(45, 'Scarlet Monastery - Graveyard (Entrance)', 189, 1688.99, 1053.48, 18.6775, 0.00117),
 	(78, 'DeadMines Entrance', 36, -16.4, -383.07, 61.78, 1.86),
@@ -79,6 +78,7 @@ INSERT INTO `areatrigger_teleport` (`ID`, `Name`, `target_map`, `target_position
 	(1468, 'Blackrock Spire - Searing Gorge Instance (Inside)', 229, 78.5083, -225.044, 49.839, 5.1),
 	(1470, 'Blackrock Spire - Searing Gorge Instance', 0, -7524.19, -1230.13, 285.743, 2.09544),
 	(1472, 'Blackrock Dephts - Searing Gorge Instance', 0, -7179.63, -923.667, 166.416, 1.84097),
+	(2068, 'Blackrock Spire - Jump Exit', 0, -7558.39, -1309.43, 248.454, 1.5708),
 	(2166, 'Deeprun Tram - Ironforge Instance (Inside)', 0, -4838.95, -1318.46, 501.868, 1.42372),
 	(2171, 'Deeprun Tram - Stormwind Instance (Inside)', 0, -8364.57, 535.981, 91.7969, 2.24619),
 	(2173, 'Deeprun Tram - Stormwind Instance', 369, 68.3006, 2490.91, -4.29647, 3.12192),
@@ -305,7 +305,6 @@ INSERT INTO `areatrigger_teleport` (`ID`, `Name`, `target_map`, `target_position
 	(5688, 'Forge of Souls (Exit)', 571, 5667.72, 2007.19, 798.042, 2.31535),
 	(5869, 'The Ruby Sanctum (Entrance)', 724, 3274, 533.531, 87.665, 3.16),
 	(5872, 'The Ruby Sanctum (Exit)', 571, 3604.23, 192.083, -110.821, 2.195);
-/*!40000 ALTER TABLE `areatrigger_teleport` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

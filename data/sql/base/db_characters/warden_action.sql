@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS `warden_action` (
   `wardenId` smallint unsigned NOT NULL,
   `action` tinyint unsigned DEFAULT NULL,
   PRIMARY KEY (`wardenId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_characters.warden_action: ~0 rows (approximately)
+-- Dumping data for table acore_characters.warden_action: ~1 rows (approximately)
 DELETE FROM `warden_action`;
 INSERT INTO `warden_action` (`wardenId`, `action`) VALUES
 	(437, 0);

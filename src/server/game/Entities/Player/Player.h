@@ -37,8 +37,8 @@
 #include "PlayerTaxi.h"
 #include "QuestDef.h"
 #include "SpellAuras.h"
-#include "SpellMgr.h"
 #include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "TradeData.h"
 #include "Unit.h"
 #include "WorldSession.h"
@@ -725,7 +725,7 @@ enum BankBagSlots                                           // 7 slots
 
 enum BuyBackSlots                                           // 12 slots
 {
-    // stored in m_buybackitems
+    // stored in m_items, there is no more m_buybackitems
     BUYBACK_SLOT_START          = 74,
     BUYBACK_SLOT_END            = 86
 };
@@ -774,6 +774,14 @@ struct ItemPosCount
     uint32 count;
 };
 typedef std::vector<ItemPosCount> ItemPosCountVec;
+
+struct SavedItem
+{
+    Item* item;
+    uint16 dstpos;
+
+    SavedItem(Item* _item, uint16 dstpos) : item(_item), dstpos(dstpos) {}
+};
 
 enum TransferAbortReason
 {
@@ -843,7 +851,7 @@ enum PlayerChatTag
     CHAT_TAG_AFK        = 0x01,
     CHAT_TAG_DND        = 0x02,
     CHAT_TAG_GM         = 0x04,
-    CHAT_TAG_COM        = 0x08, // Commentator
+    CHAT_TAG_COM        = 0x08, // Commentator tag. Do not exist in clean client
     CHAT_TAG_DEV        = 0x10,
 };
 
@@ -999,6 +1007,16 @@ enum PlayerCommandStates
     CHEAT_WATERWALK = 0x10
 };
 
+// Used for OnGiveXP PlayerScript hook
+enum PlayerXPSource
+{
+    XPSOURCE_KILL = 0,
+    XPSOURCE_QUEST = 1,
+    XPSOURCE_QUEST_DF = 2,
+    XPSOURCE_EXPLORE = 3,
+    XPSOURCE_BATTLEGROUND = 4
+};
+
 enum InstantFlightGossipAction
 {
     GOSSIP_ACTION_TOGGLE_INSTANT_FLIGHT = 500
@@ -1098,6 +1116,8 @@ public:
 
     static bool BuildEnumData(PreparedQueryResult result, WorldPacket* data);
 
+    [[nodiscard]] bool IsClass(Classes playerClass, ClassContext context = CLASS_CONTEXT_NONE) const override;
+
     void SetInWater(bool apply);
 
     [[nodiscard]] bool IsInWater() const override { return m_isInWater; }
@@ -1133,6 +1153,8 @@ public:
     void SendTaxiNodeStatusMultiple();
     // mount_id can be used in scripting calls
 
+    [[nodiscard]] bool IsCommentator() const { return HasPlayerFlag(PLAYER_FLAGS_COMMENTATOR2); }
+    void SetCommentator(bool on) { ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_COMMENTATOR2, on); }
     [[nodiscard]] bool IsDeveloper() const { return HasPlayerFlag(PLAYER_FLAGS_DEVELOPER); }
     void SetDeveloper(bool on) { ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_DEVELOPER, on); }
     [[nodiscard]] bool isAcceptWhispers() const { return m_ExtraFlags & PLAYER_EXTRA_ACCEPT_WHISPERS; }
@@ -1153,6 +1175,8 @@ public:
     void GiveLevel(uint8 level);
 
     void InitStatsForLevel(bool reapplyMods = false);
+
+    [[nodiscard]] bool HasActivePowerType(Powers power) override;
 
     // .cheat command related
     [[nodiscard]] bool GetCommandStatus(uint32 command) const { return _activeCheats & command; }
@@ -1547,6 +1571,7 @@ public:
     void SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logout);
     void SaveInventoryAndGoldToDB(CharacterDatabaseTransaction trans);                    // fast save function for item/money cheating preventing
     void SaveGoldToDB(CharacterDatabaseTransaction trans);
+    void _SaveSkills(CharacterDatabaseTransaction trans);
 
     static void Customize(CharacterCustomizeInfo const* customizeInfo, CharacterDatabaseTransaction trans);
     static void SavePositionInDB(uint32 mapid, float x, float y, float z, float o, uint32 zone, ObjectGuid guid);
@@ -1677,6 +1702,7 @@ public:
     void SetFreeTalentPoints(uint32 points);
     bool resetTalents(bool noResetCost = false);
     [[nodiscard]] uint32 resetTalentsCost() const;
+    bool IsMaxLevel() const;
     void InitTalentForLevel();
     void BuildPlayerTalentsInfoData(WorldPacket* data);
     void BuildPetTalentsInfoData(WorldPacket* data);
@@ -1805,7 +1831,7 @@ public:
     {
         Unit::SetPvP(state);
         if (!m_Controlled.empty())
-            for (auto itr : m_Controlled)
+            for (auto& itr : m_Controlled)
                 itr->SetPvP(state);
     }
     void UpdatePvP(bool state, bool _override = false);
@@ -1952,7 +1978,7 @@ public:
     [[nodiscard]] WorldSession* GetSession() const { return m_session; }
     void SetSession(WorldSession* sess) { m_session = sess; }
 
-    void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) const override;
+    void BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) override;
     void DestroyForPlayer(Player* target, bool onDeath = false) const override;
     void SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 BonusXP, bool recruitAFriend = false, float group_rate = 1.0f);
 
@@ -2080,7 +2106,7 @@ public:
     ReputationMgr&       GetReputationMgr()       { return *m_reputationMgr; }
     [[nodiscard]] ReputationMgr const& GetReputationMgr() const { return *m_reputationMgr; }
     [[nodiscard]] ReputationRank GetReputationRank(uint32 faction_id) const;
-    void RewardReputation(Unit* victim, float rate);
+    void RewardReputation(Unit* victim);
     void RewardReputation(Quest const* quest);
 
     float CalculateReputationGain(ReputationSource source, uint32 creatureOrQuestLevel, float rep, int32 faction, bool noQuestBonus = false);
@@ -2124,6 +2150,8 @@ public:
 
     void SetDrunkValue(uint8 newDrunkValue, uint32 itemId = 0);
     [[nodiscard]] uint8 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }
+    [[nodiscard]] int32 GetFakeDrunkValue() const { return GetInt32Value(PLAYER_FAKE_INEBRIATION); }
+    void UpdateInvisibilityDrunkDetect();
     static DrunkenState GetDrunkenstateByValue(uint8 value);
 
     [[nodiscard]] uint32 GetDeathTimer() const { return m_deathTimer; }
@@ -2293,7 +2321,7 @@ public:
     }
     void HandleFall(MovementInfo const& movementInfo);
 
-    [[nodiscard]] bool canFlyInZone(uint32 mapid, uint32 zone, SpellInfo const* bySpell) const;
+    [[nodiscard]] bool canFlyInZone(uint32 mapid, uint32 zone, SpellInfo const* bySpell);
 
     void SetClientControl(Unit* target, bool allowMove, bool packetOnly = false);
 
@@ -2488,6 +2516,9 @@ public:
     void RemoveTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry);
     void CompletedAchievement(AchievementEntry const* entry);
     [[nodiscard]] AchievementMgr* GetAchievementMgr() const { return m_achievementMgr; }
+
+    void SetCreationTime(Seconds creationTime) { m_creationTime = creationTime; }
+    [[nodiscard]] Seconds GetCreationTime() const { return m_creationTime; }
 
     [[nodiscard]] bool HasTitle(uint32 bitIndex) const;
     bool HasTitle(CharTitlesEntry const* title) const { return HasTitle(title->bit_index); }
@@ -2697,7 +2728,6 @@ public:
     void _SaveWeeklyQuestStatus(CharacterDatabaseTransaction trans);
     void _SaveMonthlyQuestStatus(CharacterDatabaseTransaction trans);
     void _SaveSeasonalQuestStatus(CharacterDatabaseTransaction trans);
-    void _SaveSkills(CharacterDatabaseTransaction trans);
     void _SaveSpells(CharacterDatabaseTransaction trans);
     void _SaveEquipmentSets(CharacterDatabaseTransaction trans);
     void _SaveEntryPoint(CharacterDatabaseTransaction trans);
@@ -2963,6 +2993,8 @@ private:
     bool _wasOutdoor;
 
     PlayerSettingMap m_charSettingsMap;
+
+    Seconds m_creationTime;
 };
 
 void AddItemsSetItem(Player* player, Item* item);

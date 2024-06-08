@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -22,11 +22,10 @@ CREATE TABLE IF NOT EXISTS `player_factionchange_quests` (
   PRIMARY KEY (`alliance_id`,`horde_id`),
   UNIQUE KEY `alliance_uniq` (`alliance_id`),
   UNIQUE KEY `horde_uniq` (`horde_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.player_factionchange_quests: 293 rows
+-- Dumping data for table acore_world.player_factionchange_quests: ~293 rows (approximately)
 DELETE FROM `player_factionchange_quests`;
-/*!40000 ALTER TABLE `player_factionchange_quests` DISABLE KEYS */;
 INSERT INTO `player_factionchange_quests` (`alliance_id`, `horde_id`) VALUES
 	(7065, 7064),
 	(7168, 7163),
@@ -321,7 +320,6 @@ INSERT INTO `player_factionchange_quests` (`alliance_id`, `horde_id`) VALUES
 	(25282, 25254),
 	(25290, 25288),
 	(25414, 25293);
-/*!40000 ALTER TABLE `player_factionchange_quests` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

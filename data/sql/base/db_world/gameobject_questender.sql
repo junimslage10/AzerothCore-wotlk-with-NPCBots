@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,14 +17,13 @@
 -- Dumping structure for table acore_world.gameobject_questender
 DROP TABLE IF EXISTS `gameobject_questender`;
 CREATE TABLE IF NOT EXISTS `gameobject_questender` (
-  `id` mediumint unsigned NOT NULL DEFAULT '0',
-  `quest` mediumint unsigned NOT NULL DEFAULT '0' COMMENT 'Quest Identifier',
+  `id` int unsigned NOT NULL DEFAULT '0',
+  `quest` int unsigned NOT NULL DEFAULT '0' COMMENT 'Quest Identifier',
   PRIMARY KEY (`id`,`quest`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.gameobject_questender: 457 rows
+-- Dumping data for table acore_world.gameobject_questender: ~457 rows (approximately)
 DELETE FROM `gameobject_questender`;
-/*!40000 ALTER TABLE `gameobject_questender` DISABLE KEYS */;
 INSERT INTO `gameobject_questender` (`id`, `quest`) VALUES
 	(31, 94),
 	(33, 140),
@@ -483,7 +482,6 @@ INSERT INTO `gameobject_questender` (`id`, `quest`) VALUES
 	(194555, 13817),
 	(194555, 13818),
 	(201742, 24545);
-/*!40000 ALTER TABLE `gameobject_questender` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

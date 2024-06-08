@@ -15,20 +15,22 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AchievementCriteriaScript.h"
 #include "Cell.h"
 #include "CellImpl.h"
+#include "CreatureScript.h"
 #include "CreatureTextMgr.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
 #include "ObjectMgr.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "Unit.h"
 #include "Vehicle.h"
+#include "Weather.h"
 #include "icecrown_citadel.h"
 
 enum Texts
@@ -61,6 +63,7 @@ enum Texts
     SAY_TIRION_INTRO_2              = 1,
     SAY_TIRION_OUTRO_1              = 2,
     SAY_TIRION_OUTRO_2              = 3,
+    SAY_TIRION_OUTRO_3              = 4,
 
     // Terenas Menethil (outro)
     SAY_TERENAS_OUTRO_1             = 0,
@@ -343,6 +346,7 @@ enum MiscData
 {
     LIGHT_SNOWSTORM             = 2490,
     LIGHT_SOULSTORM             = 2508,
+    EQUIP_ASHBRINGER            = 13262,
     MUSIC_FROZEN_THRONE         = 17457,
     MUSIC_SPECIAL               = 17458, // Summon Shambling Horror, Remorseless Winter, Quake, Summon Val'kyr Periodic, Harvest Soul, Vile Spirits
     MUSIC_FURY_OF_FROSTMOURNE   = 17459,
@@ -833,8 +837,7 @@ public:
                     _bFordringMustFallYell = true;
                     if (Creature* tirion = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_HIGHLORD_TIRION_FORDRING)))
                     {
-                        tirion->Yell("The Lich King must fall!", LANG_UNIVERSAL);
-                        tirion->PlayDirectSound(17389);
+                        tirion->AI()->Talk(SAY_TIRION_OUTRO_3);
                     }
                 }
             }
@@ -1354,7 +1357,7 @@ public:
             {
                 // remove glow on ashbringer and tirion
                 me->RemoveAllAuras();
-                SetEquipmentSlots(true);
+                SetEquipmentSlots(false, EQUIP_ASHBRINGER);
             }
         }
 
@@ -1595,7 +1598,7 @@ public:
                             lichKing->SetImmuneToNPC(false);
                             me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
                             me->RemoveAllAuras();
-                            SetEquipmentSlots(true);
+                            SetEquipmentSlots(false, EQUIP_ASHBRINGER);
                             me->Attack(lichKing, true);
                             me->GetMotionMaster()->MovePoint(0, 512.16f, -2120.25f, 840.86f);
                         }
@@ -2822,6 +2825,9 @@ public:
                 targets.clear();
                 return;
             }
+            //npcbot
+            targets.remove_if(Acore::ObjectTypeIdCheck(TYPEID_PLAYER, false));
+            //end npcbot
             targets.remove_if(Acore::UnitAuraCheck(true, GetSpellInfo()->Id));
             targets.remove_if(Acore::UnitAuraCheck(true, SPELL_BOSS_HITTIN_YA_AURA)); // done in dbc, but just to be sure xd
             targets.remove_if(Acore::UnitAuraCheck(true, SPELL_HARVEST_SOUL_VALKYR));

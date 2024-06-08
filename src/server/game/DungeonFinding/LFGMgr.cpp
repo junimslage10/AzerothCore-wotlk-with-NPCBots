@@ -34,6 +34,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "SocialMgr.h"
 #include "SpellAuras.h"
@@ -50,9 +51,6 @@ namespace lfg
 {
     LFGMgr::LFGMgr(): m_lfgProposalId(1), m_options(sWorld->getIntConfig(CONFIG_LFG_OPTIONSMASK)), m_Testing(false)
     {
-        new LFGPlayerScript();
-        new LFGGroupScript();
-
         for (uint8 team = 0; team < 2; ++team)
         {
             m_raidBrowserUpdateTimer[team] = 10000;
@@ -196,7 +194,7 @@ namespace lfg
             if (!dungeon)
                 continue;
 
-            switch (dungeon->type)
+            switch (dungeon->TypeID)
             {
                 case LFG_TYPE_DUNGEON:
                 case LFG_TYPE_HEROIC:
@@ -1154,7 +1152,7 @@ namespace lfg
                     baseAP = p->GetTotalAttackPowerValue(BASE_ATTACK);
                     rangedAP = p->GetTotalAttackPowerValue(RANGED_ATTACK);
                     maxPower = 0;
-                    if (p->getClass() == CLASS_DRUID)
+                    if (p->IsClass(CLASS_DRUID))
                         maxPower = p->GetMaxPower(POWER_MANA);
                     else
                         maxPower = (p->getPowerType() == POWER_RAGE || p->getPowerType() == POWER_RUNIC_POWER) ? p->GetMaxPower(p->getPowerType()) / 10 : p->GetMaxPower(p->getPowerType());
@@ -2332,14 +2330,6 @@ namespace lfg
             return;
         }
 
-        if (out)
-        {
-            if (player->GetMapId() == uint32(dungeon->map))
-                player->TeleportToEntryPoint();
-
-            return;
-        }
-
         LfgTeleportError error = LFG_TELEPORTERROR_OK;
 
         if (!player->IsAlive())
@@ -2361,6 +2351,13 @@ namespace lfg
         else if (player->GetCharmGUID() || player->IsInCombat())
         {
             error = LFG_TELEPORTERROR_COMBAT;
+        }
+        else if (out && error == LFG_TELEPORTERROR_OK)
+        {
+            if (player->GetMapId() == uint32(dungeon->map))
+                player->TeleportToEntryPoint();
+
+            return;
         }
         else
         {
@@ -2387,11 +2384,18 @@ namespace lfg
         }
 
         if (error != LFG_TELEPORTERROR_OK)
+        {
             player->GetSession()->SendLfgTeleportError(uint8(error));
 
-        //LOG_DEBUG("lfg", "TeleportPlayer: Player {} is being teleported in to map {} "
-        //    "(x: {}, y: {}, z: {}) Result: {}", player->GetName(), dungeon->map,
-        //    dungeon->x, dungeon->y, dungeon->z, error);
+            LOG_DEBUG("lfg", "Player [{}] could NOT be teleported in to map [{}] (x: {}, y: {}, z: {}) Error: {}",
+            player->GetName(), dungeon->map, dungeon->x, dungeon->y, dungeon->z, error);
+        }
+        else
+        {
+            LOG_DEBUG("lfg", "Player [{}] is being teleported in to map [{}] (x: {}, y: {}, z: {})",
+            player->GetName(), dungeon->map, dungeon->x, dungeon->y, dungeon->z);
+        }
+
     }
 
     /**

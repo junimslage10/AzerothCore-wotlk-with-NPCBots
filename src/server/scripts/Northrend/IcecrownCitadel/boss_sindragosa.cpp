@@ -15,12 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AchievementCriteriaScript.h"
+#include "AreaTriggerScript.h"
+#include "CreatureScript.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "ObjectMgr.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "SpellScriptLoader.h"
 #include "icecrown_citadel.h"
 
 enum Texts
@@ -279,7 +282,6 @@ public:
 
         void Reset() override
         {
-            _didFirstFlyPhase = false;
             _isBelow20Pct = false;
             _isThirdPhase = false;
             _isLanding = false;
@@ -322,7 +324,6 @@ public:
                 return;
             }
 
-            _didFirstFlyPhase = false;
             _isBelow20Pct = false;
             _isThirdPhase = false;
             _bombCount = 0;
@@ -451,9 +452,6 @@ public:
             if (!damage || me->IsInEvadeMode())
                 return;
 
-            if (!_didFirstFlyPhase)
-                return;
-
             if (!_isThirdPhase)
             {
                 if (!HealthAbovePct(35))
@@ -575,7 +573,6 @@ public:
                     }
 
                     _isInAirPhase = true;
-                    _didFirstFlyPhase = true;
                     Talk(SAY_AIR_PHASE);
                     me->SetReactState(REACT_PASSIVE);
                     me->SetSpeed(MOVE_RUN, 4.28571f);
@@ -671,7 +668,6 @@ public:
     private:
         uint8 _bombCount;
         uint8 _mysticBuffetStack;
-        bool _didFirstFlyPhase;
         bool _isBelow20Pct;
         bool _isThirdPhase;
         bool _isInAirPhase;
@@ -857,12 +853,12 @@ public:
         {
             if (p->getPowerType() != POWER_MANA)
                 return true;
-            if (p->getClass() == CLASS_HUNTER)
+            if (p->IsClass(CLASS_HUNTER))
                 return true;
             uint8 maxIndex = p->GetMostPointsTalentTree();
-            if ((p->getClass() == CLASS_PALADIN && maxIndex >= 1) || (p->getClass() == CLASS_SHAMAN && maxIndex == 1) || (p->getClass() == CLASS_DRUID && maxIndex == 1))
+            if ((p->IsClass(CLASS_PALADIN) && maxIndex >= 1) || (p->IsClass(CLASS_SHAMAN) && maxIndex == 1) || (p->IsClass(CLASS_DRUID) && maxIndex == 1))
                 return true;
-            if (_removeHealers == ((p->getClass() == CLASS_DRUID && maxIndex == 2) || (p->getClass() == CLASS_PALADIN && maxIndex == 0) || (p->getClass() == CLASS_PRIEST && maxIndex <= 1) || (p->getClass() == CLASS_SHAMAN && maxIndex == 2)))
+            if (_removeHealers == ((p->IsClass(CLASS_DRUID) && maxIndex == 2) || (p->IsClass(CLASS_PALADIN) && maxIndex == 0) || (p->IsClass(CLASS_PRIEST) && maxIndex <= 1) || (p->IsClass(CLASS_SHAMAN) && maxIndex == 2)))
                 return true;
 
             return false;
@@ -873,85 +869,29 @@ private:
     bool _removeHealers;
 };
 
-class spell_sindragosa_unchained_magic : public SpellScriptLoader
+class spell_sindragosa_unchained_magic : public SpellScript
 {
-public:
-    spell_sindragosa_unchained_magic() : SpellScriptLoader("spell_sindragosa_unchained_magic") { }
+    PrepareSpellScript(spell_sindragosa_unchained_magic);
 
-    class spell_sindragosa_unchained_magic_SpellScript : public SpellScript
+    void FilterTargets(std::list<WorldObject*>& unitList)
     {
-        PrepareSpellScript(spell_sindragosa_unchained_magic_SpellScript);
-
-        void FilterTargets(std::list<WorldObject*>& unitList)
-        {
-            std::list<WorldObject*> healList = unitList;
-            std::list<WorldObject*> dpsList = unitList;
-            unitList.clear();
-            uint32 maxSize = uint32(GetCaster()->GetMap()->GetSpawnMode() & 1 ? 3 : 1);
-            healList.remove_if(UnchainedMagicTargetSelector(false));
-            if (healList.size() > maxSize)
-                Acore::Containers::RandomResize(healList, maxSize);
-            dpsList.remove_if(UnchainedMagicTargetSelector(true));
-            if (dpsList.size() > maxSize)
-                Acore::Containers::RandomResize(dpsList, maxSize);
-            unitList.splice(unitList.begin(), healList);
-            unitList.splice(unitList.begin(), dpsList);
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sindragosa_unchained_magic_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_sindragosa_unchained_magic_SpellScript();
+        std::list<WorldObject*> healList = unitList;
+        std::list<WorldObject*> dpsList = unitList;
+        unitList.clear();
+        uint32 maxSize = uint32(GetCaster()->GetMap()->GetSpawnMode() & 1 ? 3 : 1);
+        healList.remove_if(UnchainedMagicTargetSelector(false));
+        if (healList.size() > maxSize)
+            Acore::Containers::RandomResize(healList, maxSize);
+        dpsList.remove_if(UnchainedMagicTargetSelector(true));
+        if (dpsList.size() > maxSize)
+            Acore::Containers::RandomResize(dpsList, maxSize);
+        unitList.splice(unitList.begin(), healList);
+        unitList.splice(unitList.begin(), dpsList);
     }
 
-    class spell_sindragosa_unchained_magic_AuraScript : public AuraScript
+    void Register() override
     {
-        PrepareAuraScript(spell_sindragosa_unchained_magic_AuraScript);
-
-        std::map<uint32, uint32> _lastMSTimeForSpell;
-
-        bool Validate(SpellInfo const* /*spellInfo*/) override
-        {
-            _lastMSTimeForSpell.clear();
-            return true;
-        }
-
-        bool CheckProc(ProcEventInfo& eventInfo)
-        {
-            SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
-            if (!spellInfo)
-                return false;
-
-            uint32 currMSTime = GameTime::GetGameTimeMS().count();
-            std::map<uint32, uint32>::iterator itr = _lastMSTimeForSpell.find(spellInfo->Id);
-            if (itr != _lastMSTimeForSpell.end())
-            {
-                uint32 lastMSTime = itr->second;
-                itr->second = currMSTime;
-                if (getMSTimeDiff(lastMSTime, currMSTime) < 600)
-                    return false;
-
-                return true;
-            }
-
-            _lastMSTimeForSpell[spellInfo->Id] = currMSTime;
-            return true;
-        }
-
-        void Register() override
-        {
-            DoCheckProc += AuraCheckProcFn(spell_sindragosa_unchained_magic_AuraScript::CheckProc);
-        }
-    };
-
-    AuraScript* GetAuraScript() const override
-    {
-        return new spell_sindragosa_unchained_magic_AuraScript();
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sindragosa_unchained_magic::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
     }
 };
 
@@ -1127,11 +1067,21 @@ class SindragosaIceTombCheck
 public:
     bool operator()(Unit* unit) const
     {
+        //npcbot
+        if (!unit->IsPlayer())
+            return true;
+        //end npcbot
+
         return unit->HasAura(SPELL_FROST_IMBUED_BLADE) || unit->IsImmunedToDamageOrSchool(SPELL_SCHOOL_MASK_ALL);
     }
 
     bool operator()(WorldObject* object) const
     {
+        //npcbot
+        if (!object->IsPlayer())
+            return true;
+        //end npcbot
+
         return object->ToUnit() && (object->ToUnit()->HasAura(SPELL_FROST_IMBUED_BLADE) || object->ToUnit()->IsImmunedToDamageOrSchool(SPELL_SCHOOL_MASK_ALL));
     }
 };
@@ -1184,6 +1134,10 @@ public:
 
         void FilterTargets(std::list<WorldObject*>& unitList)
         {
+            //npcbot
+            unitList.remove_if(SindragosaIceTombCheck());
+            //end npcbot
+
             unitList.remove_if(Acore::UnitAuraCheck(true, GetSpellInfo()->Id));
             targetList.clear();
             targetList = unitList;
@@ -2016,7 +1970,7 @@ void AddSC_boss_sindragosa()
     new boss_sindragosa();
     new npc_ice_tomb();
     new spell_sindragosa_s_fury();
-    new spell_sindragosa_unchained_magic();
+    RegisterSpellScript(spell_sindragosa_unchained_magic);
     new spell_sindragosa_permeating_chill();
     new spell_sindragosa_instability();
     new spell_sindragosa_icy_grip();

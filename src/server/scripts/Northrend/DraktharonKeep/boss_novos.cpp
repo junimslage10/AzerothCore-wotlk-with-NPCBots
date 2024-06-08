@@ -15,8 +15,10 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "AchievementCriteriaScript.h"
+#include "CreatureScript.h"
 #include "ScriptedCreature.h"
+#include "SpellScriptLoader.h"
 #include "drak_tharon_keep.h"
 
 enum Yells
@@ -132,7 +134,7 @@ public:
             me->CastSpell(me, SPELL_ARCANE_FIELD, true);
             me->CastSpell(me, SPELL_DESPAWN_CRYSTAL_HANDLER, true);
 
-            for (auto itr : npcSummon)
+            for (auto& itr : npcSummon)
             {
                 uint32 summonEntry;
                 Position summonPos;

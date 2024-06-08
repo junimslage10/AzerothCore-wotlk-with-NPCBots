@@ -15,13 +15,16 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AchievementCriteriaScript.h"
+#include "CreatureScript.h"
+#include "GameObjectScript.h"
 #include "PassiveAI.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptedEscortAI.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "ulduar.h"
 
 enum ThorimSpells
@@ -194,6 +197,7 @@ enum ThorimEvents
     EVENT_THORIM_OUTRO1                     = 13,
     EVENT_THORIM_OUTRO2                     = 14,
     EVENT_THORIM_OUTRO3                     = 15,
+    EVENT_THORIM_OUTRO4                     = 16,
 
     EVENT_DR_ACOLYTE_GH                     = 20,
     EVENT_DR_ACOLYTE_HS                     = 21,
@@ -627,6 +631,11 @@ public:
                 me->CastSpell(me, SPELL_LIGHTNING_CHARGE_BUFF, true);
                 events.RescheduleEvent(EVENT_THORIM_LIGHTNING_CHARGE, 10s, 0, EVENT_PHASE_RING);
             }
+            else if (spellInfo->Id == SPELL_TELEPORT)
+            {
+                me->DespawnOrUnsummon();
+                m_pInstance->SetData(EVENT_KEEPER_TELEPORTED, DONE);
+            }
         }
 
         void SpellHitTarget(Unit* target, SpellInfo const* spellInfo) override
@@ -770,12 +779,13 @@ public:
                     {
                         Talk(SAY_END_NORMAL_3);
                     }
-
                     // Defeat credit
                     if (m_pInstance)
                         m_pInstance->SetData(TYPE_THORIM, DONE);
-
-                    me->DespawnOrUnsummon(8000);
+                    events.ScheduleEvent(EVENT_THORIM_OUTRO4, 14s, 0, 3);
+                    break;
+                case EVENT_THORIM_OUTRO4:
+                    DoCastSelf(SPELL_TELEPORT);
                     break;
             }
 

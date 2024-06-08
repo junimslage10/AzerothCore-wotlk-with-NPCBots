@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,14 +17,13 @@
 -- Dumping structure for table acore_world.areatrigger_involvedrelation
 DROP TABLE IF EXISTS `areatrigger_involvedrelation`;
 CREATE TABLE IF NOT EXISTS `areatrigger_involvedrelation` (
-  `id` mediumint unsigned NOT NULL DEFAULT '0' COMMENT 'Identifier',
-  `quest` mediumint unsigned NOT NULL DEFAULT '0' COMMENT 'Quest Identifier',
+  `id` int unsigned NOT NULL DEFAULT '0' COMMENT 'Identifier',
+  `quest` int unsigned NOT NULL DEFAULT '0' COMMENT 'Quest Identifier',
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED COMMENT='Trigger System';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Trigger System';
 
--- Dumping data for table acore_world.areatrigger_involvedrelation: 59 rows
+-- Dumping data for table acore_world.areatrigger_involvedrelation: ~57 rows (approximately)
 DELETE FROM `areatrigger_involvedrelation`;
-/*!40000 ALTER TABLE `areatrigger_involvedrelation` DISABLE KEYS */;
 INSERT INTO `areatrigger_involvedrelation` (`id`, `quest`) VALUES
 	(78, 155),
 	(87, 76),
@@ -69,8 +68,6 @@ INSERT INTO `areatrigger_involvedrelation` (`id`, `quest`) VALUES
 	(4298, 9731),
 	(4300, 9752),
 	(4301, 9786),
-	(4473, 10269),
-	(4475, 10275),
 	(4581, 10750),
 	(4588, 10772),
 	(4899, 11890),
@@ -85,7 +82,6 @@ INSERT INTO `areatrigger_involvedrelation` (`id`, `quest`) VALUES
 	(5704, 24656),
 	(5705, 24541),
 	(5706, 24541);
-/*!40000 ALTER TABLE `areatrigger_involvedrelation` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

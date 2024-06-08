@@ -76,7 +76,7 @@ public:
                 {
                     gossipTextId = GOSSIP_BOTGIVER_HIRE;
 
-                    if (player->GetNpcBotsCount() >= BotMgr::GetMaxNpcBots())
+                    if (player->GetNpcBotsCount() >= BotMgr::GetMaxNpcBots(player->GetLevel()))
                     {
                         WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
                         break;
@@ -138,6 +138,7 @@ public:
                             case BOT_CLASS_DARK_RANGER: textId = BOT_TEXT_CLASS_DARK_RANGER_PLU;    break;
                             case BOT_CLASS_NECROMANCER: textId = BOT_TEXT_CLASS_NECROMANCER_PLU;    break;
                             case BOT_CLASS_SEA_WITCH:   textId = BOT_TEXT_CLASS_SEAWITCH_PLU;       break;
+                            case BOT_CLASS_CRYPT_LORD:  textId = BOT_TEXT_CLASS_CRYPT_LORD_PLU;     break;
                             default:                    textId = 0;                                 break;
                         }
 
@@ -240,7 +241,7 @@ public:
                     }
 
                     bot_ai const* ai = bot->GetBotAI();
-                    if (bot->IsInCombat() || !bot->IsAlive() || bot_ai::CCed(bot) || ai->IsDuringTeleport() ||
+                    if (bot->IsInCombat() || !bot->IsAlive() || bot_ai::CCed(bot) ||
                         bot->HasUnitState(UNIT_STATE_CASTING) || ai->GetBotOwnerGuid() || bot->HasAura(BERSERK))
                     {
                         //TC_LOG_ERROR("entities.unit", "HIRE_NBOT_ENTRY: bot %u (%s) is unavailable all of the sudden!", entry);

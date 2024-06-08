@@ -252,7 +252,7 @@ public:
 
         void CheckAspects(uint32 diff)
         {
-            if (aspectTimer > diff || IAmFree() || me->IsMounted() || Feasting() || IsCasting() || Rand() > 55)
+            if (aspectTimer > diff || me->IsMounted() || Feasting() || IsCasting() || Rand() > 55)
                 return;
 
             aspectTimer = urand(5000, 10000);
@@ -280,61 +280,81 @@ public:
                 return;
             }
 
-            if (ASPECT_OF_THE_VIPER && GetManaPCT(me) < 20)
+            if (GetManaPCT(me) < 20)
             {
-                if (doCast(me, ASPECT_OF_THE_VIPER))
-                    return;
+                if (ASPECT_OF_THE_VIPER)
+                {
+                    if (doCast(me, ASPECT_OF_THE_VIPER))
+                        return;
+                }
                 return;
+            }
+            else if (Aspect == ASPECT_VIPER && GetManaPCT(me) > 50)
+            {
+                me->RemoveAurasDueToSpell(ASPECT_OF_THE_VIPER_1, me->GetGUID());
+                Aspect = ASPECT_NONE;
             }
 
             if (IAmFree())
             {
-                if (ASPECT_OF_THE_DRAGONHAWK && Aspect != ASPECT_DRAGONHAWK)
-                    if (doCast(me, ASPECT_OF_THE_DRAGONHAWK))
-                        return;
-                return;
-            }
-
-            //Group const* gr = master->GetGroup();
-            //choose movement aspect first
-            if (!master->GetBotMgr()->IsPartyInCombat())
-            {
-                if (!(mask & SPECIFIC_ASPECT_PACK))
+                InstanceTemplate const* instt = sObjectMgr->GetInstanceTemplate(me->GetMap()->GetId());
+                bool map_allows_mount = (!me->GetMap()->IsDungeon() || me->GetMap()->IsBattlegroundOrArena()) && (!instt || instt->AllowMount);
+                if (me->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD) &&
+                    (!me->GetVictim() ?
+                        (me->IsInCombat() || !map_allows_mount || !IsOutdoors() || IsFlagCarrier(me)) :
+                        !me->IsWithinDist(me->GetVictim(), 8.0f + GetSpellAttackRange(true))))
                 {
-                    uint32 movFlags;
-                    if (ASPECT_OF_THE_PACK)
+                    if (ASPECT_OF_THE_CHEETAH && !(mask & (SPECIFIC_ASPECT_CHEETAH | SPECIFIC_ASPECT_PACK)) && Aspect != ASPECT_CHEETAH)
                     {
-                        movFlags = master->m_movementInfo.GetMovementFlags();
-                        if ((movFlags & MOVEMENTFLAG_FORWARD) && !(movFlags & (MOVEMENTFLAG_FALLING_FAR)))
-                        {
-                            if (doCast(me, ASPECT_OF_THE_PACK))
-                                return;
-                        }
+                        if (doCast(me, ASPECT_OF_THE_CHEETAH))
+                            return;
                     }
-                    if (ASPECT_OF_THE_CHEETAH && Aspect != ASPECT_CHEETAH)
-                    {
-                        movFlags = me->m_movementInfo.GetMovementFlags();
-                        if ((movFlags & MOVEMENTFLAG_FORWARD) && !(movFlags & (MOVEMENTFLAG_FALLING_FAR)) &&
-                            me->GetDistance(master) > 20)
-                        {
-                            if (doCast(me, ASPECT_OF_THE_CHEETAH))
-                                return;
-                        }
-                    }
-                }
 
-                return;
+                    return;
+                }
+                else if (Aspect == ASPECT_CHEETAH)
+                {
+                    me->RemoveAurasDueToSpell(ASPECT_OF_THE_CHEETAH_1, me->GetGUID());
+                    Aspect = ASPECT_NONE;
+                }
             }
-            else if (Aspect == ASPECT_PACK)
+            else
             {
-                me->RemoveAurasDueToSpell(ASPECT_OF_THE_PACK_1, me->GetGUID());
-                Aspect = ASPECT_NONE;
+                //choose movement aspect first
+                if (!master->GetBotMgr()->IsPartyInCombat())
+                {
+                    if (!(mask & SPECIFIC_ASPECT_PACK))
+                    {
+                        uint32 movFlags;
+                        if (ASPECT_OF_THE_PACK)
+                        {
+                            movFlags = master->m_movementInfo.GetMovementFlags();
+                            if ((movFlags & MOVEMENTFLAG_FORWARD) && !(movFlags & (MOVEMENTFLAG_FALLING_FAR)))
+                            {
+                                if (doCast(me, ASPECT_OF_THE_PACK))
+                                    return;
+                            }
+                        }
+                        if (ASPECT_OF_THE_CHEETAH && Aspect != ASPECT_CHEETAH)
+                        {
+                            movFlags = me->m_movementInfo.GetMovementFlags();
+                            if ((movFlags & MOVEMENTFLAG_FORWARD) && !(movFlags & (MOVEMENTFLAG_FALLING_FAR)) &&
+                                me->GetDistance(master) > 20)
+                            {
+                                if (doCast(me, ASPECT_OF_THE_CHEETAH))
+                                    return;
+                            }
+                        }
+                    }
+
+                    return;
+                }
+                else if (Aspect == ASPECT_PACK)
+                {
+                    me->RemoveAurasDueToSpell(ASPECT_OF_THE_PACK_1, me->GetGUID());
+                    Aspect = ASPECT_NONE;
+                }
             }
-            //else if (Aspect == ASPECT_CHEETAH)
-            //{
-            //    me->RemoveAurasDueToSpell(ASPECT_OF_THE_CHEETAH_1, me->GetGUID());
-            //    Aspect = ASPECT_NONE;
-            //}
 
             if ((Aspect == ASPECT_DRAGONHAWK && idMap[ASPECT_OF_THE_DRAGONHAWK_1] == ASPECT_OF_THE_DRAGONHAWK) ||
                 (!ASPECT_OF_THE_DRAGONHAWK && ((Aspect == ASPECT_HAWK && idMap[ASPECT_OF_THE_HAWK_1] == ASPECT_OF_THE_HAWK) ||
@@ -638,31 +658,12 @@ public:
             //find tank
             //stacks
             std::list<Unit*> tanks;
-            Group const* gr = master->GetGroup();
-            for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
+            for (Unit* member : BotMgr::GetAllGroupMembers(master))
             {
-                Player* player = itr->GetSource();
-                if (!player || !player->IsInWorld() || me->GetMap() != player->FindMap())
-                    continue;
-
-                if (player->IsAlive() && player->IsInCombat() && IsTank(player) && player->GetVictim())
-                    tanks.push_back(player);
-
-                if (!player->HaveBot())
-                    continue;
-
-                BotMap const* map = player->GetBotMgr()->GetBotMap();
-                for (BotMap::const_iterator bitr = map->begin(); bitr != map->end(); ++bitr)
+                if (member->IsInWorld() && me->GetMap() == member->FindMap() && member->IsAlive() &&
+                    member->GetVictim() && member->IsInCombat() && IsTank(member))
                 {
-                    if (bitr->second == me)
-                        continue;
-                    if (!gr->IsMember(bitr->second->GetGUID()))
-                        continue;
-
-                    Unit* u = bitr->second;
-                    if (u->IsInWorld() && u->IsAlive() && u->IsInCombat() && IsTank(u) &&
-                        (u->GetVictim() || !u->getAttackers().empty()))
-                        tanks.push_back(u);
+                    tanks.push_back(member);
                 }
             }
 
@@ -692,8 +693,8 @@ public:
             Spell const* spell = me->GetCurrentSpell(CURRENT_GENERIC_SPELL);
             if (spell && spell->GetSpellInfo()->Id == GetSpell(SCARE_BEAST_1))
             {
-                if (spell->m_targets.GetUnitTarget() &&
-                    spell->m_targets.GetUnitTarget()->HasAuraType(SPELL_AURA_MOD_FEAR))
+                Unit const* target = ObjectAccessor::GetUnit(*me, spell->m_targets.GetObjectTargetGUID());
+                if (target && target->HasAuraType(SPELL_AURA_MOD_FEAR))
                     me->InterruptSpell(CURRENT_GENERIC_SPELL);
             }
 
@@ -762,10 +763,12 @@ public:
 
             StartAttack(mytar, IsMelee());
 
+            CheckAttackState();
+            if (!me->IsAlive() || !mytar->IsAlive())
+                return;
+
             Counter(diff);
             CheckTranquil(diff);
-
-            MoveBehind(mytar);
 
             float dist = me->GetDistance(mytar);
             float maxRangeLong = me->GetLevel() >= 10 ? 51.f : 45.f;
@@ -1036,174 +1039,44 @@ public:
 
             flareTimer = urand(2000, 4000);
 
-            Unit* attacker = me->GetVictim();
-            if (attacker)
+            std::set<Unit*> targets;
+            if (Group const* gr = !IAmFree() ? master->GetGroup() : GetGroup())
             {
-                if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                    attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                    attacker->HasInvisibilityAura() || attacker->HasStealthAura())
+                for (Unit* member : BotMgr::GetAllGroupMembers(gr))
                 {
-                    if (doCast(attacker, GetSpell(FLARE_1)))
-                        return;
-                }
-            }
-
-            if (IAmFree())
-            {
-                Unit::AttackerSet const& b_attackers = me->getAttackers();
-                if (b_attackers.empty())
-                    return;
-
-                for (Unit::AttackerSet::const_iterator itr = b_attackers.begin(); itr != b_attackers.end(); ++itr)
-                {
-                    attacker = *itr;
-                    if (me->GetDistance(attacker) > 15)
+                    if (me->GetMap() != member->FindMap() || !member->IsAlive())
                         continue;
-
-                    if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                        attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                        attacker->HasInvisibilityAura() || attacker->HasStealthAura())
+                    for (Unit* attacker : member->getAttackers())
                     {
-                        if (doCast(me, GetSpell(FLARE_1)))
-                            return;
-
-                        break;
-                    }
-                }
-
-                return;
-            }
-
-            attacker = master->GetVictim();
-            if (attacker && me->GetDistance(attacker) < 30)
-            {
-                if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                    attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                    attacker->HasInvisibilityAura() || attacker->HasStealthAura())
-                {
-                    if (doCast(attacker, GetSpell(FLARE_1)))
-                        return;
-                }
-            }
-
-            Group const* gr = master->GetGroup();
-            if (!gr)
-            {
-                if (me->GetDistance(master) > 30)
-                    return;
-
-                Unit::AttackerSet const& m_attackers = master->getAttackers();
-                if (m_attackers.empty())
-                    return;
-
-                for (Unit::AttackerSet::const_iterator itr = m_attackers.begin(); itr != m_attackers.end(); ++itr)
-                {
-                    attacker = *itr;
-                    if (master->GetDistance(attacker) > 15 || me->GetDistance(attacker) > 30)
-                        continue;
-
-                    if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                        attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                        attacker->HasInvisibilityAura() || attacker->HasStealthAura())
-                    {
-                        if (doCast(urand(1,100) <= 50 ? master : attacker, GetSpell(FLARE_1)))
-                            return;
-
-                        break;
-                    }
-                }
-
-                return;
-            }
-
-            for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
-            {
-                Player* tPlayer = itr->GetSource();
-                if (tPlayer == nullptr) continue;
-                if (me->GetMap() != tPlayer->FindMap()) continue;
-                if (!tPlayer->IsAlive()) continue;
-                if (me->GetDistance(tPlayer) > 30) continue;
-                attacker = tPlayer->GetVictim();
-                if (attacker && me->GetDistance(attacker) < 30)
-                {
-                    if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                        attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                        attacker->HasInvisibilityAura() || attacker->HasStealthAura())
-                    {
-                        if (doCast(attacker, GetSpell(FLARE_1)))
-                            return;
-                    }
-                }
-                Unit::AttackerSet const& p_attackers = tPlayer->getAttackers();
-                if (p_attackers.empty())
-                    continue;
-
-                for (Unit::AttackerSet::const_iterator bitr = p_attackers.begin(); bitr != p_attackers.end(); ++bitr)
-                {
-                    attacker = *bitr;
-                    if (tPlayer->GetDistance(attacker) > 15 || me->GetDistance(attacker) > 30)
-                        continue;
-
-                    if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                        attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                        attacker->HasInvisibilityAura() || attacker->HasStealthAura())
-                    {
-                        if (doCast(urand(1,100) <= 50 ? tPlayer : attacker, GetSpell(FLARE_1)))
-                            return;
-
-                        break;
-                    }
-                }
-            }
-            for (GroupReference const* itr = gr->GetFirstMember(); itr != nullptr; itr = itr->next())
-            {
-                Player const* gPlayer = itr->GetSource();
-                if (gPlayer == nullptr) continue;
-                if (me->GetMap() != gPlayer->FindMap()) continue;
-                if (!gPlayer->HaveBot())
-                    continue;
-
-                BotMap const* map = gPlayer->GetBotMgr()->GetBotMap();
-                for (BotMap::const_iterator bitr = map->begin(); bitr != map->end(); ++bitr)
-                {
-                    Unit* u = bitr->second;
-                    if (!u || !u->IsInWorld() || me->GetMap() != u->FindMap() || !u->IsAlive() ||
-                        u->IsTotem() || me->GetDistance(u) > 30)
-                        continue;
-
-                    attacker = u->GetVictim();
-                    if (attacker && me->GetDistance(attacker) < 30)
-                    {
-                        if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                            attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                            attacker->HasInvisibilityAura() || attacker->HasStealthAura())
+                        if (attacker->GetClass() == CLASS_ROGUE || attacker->HasInvisibilityAura() || attacker->HasStealthAura())
                         {
-                            if (doCast(attacker, GetSpell(FLARE_1)))
-                                return;
-                        }
-                    }
-                    Unit::AttackerSet const& u_attackers = u->getAttackers();
-                    if (u_attackers.empty())
-                        continue;
-
-                    for (Unit::AttackerSet::const_iterator aitr = u_attackers.begin(); aitr != u_attackers.end(); ++aitr)
-                    {
-                        attacker = *aitr;
-                        if (u->GetDistance(attacker) > 15 || me->GetDistance(attacker) > 30)
-                            continue;
-
-                        if ((attacker->GetTypeId() == TYPEID_PLAYER ? attacker->GetClass() == CLASS_ROGUE :
-                            attacker->ToCreature()->GetBotClass() == BOT_CLASS_ROGUE) ||
-                            attacker->HasInvisibilityAura() || attacker->HasStealthAura())
-                        {
-                            if (doCast(urand(1,100) <= 50 ? u : attacker, GetSpell(FLARE_1)))
-                                return;
-
-                            break;
+                            if (member->GetDistance(attacker) < 15)
+                            {
+                                targets.insert(member);
+                                break;
+                            }
                         }
                     }
                 }
             }
+            for (Unit* attacker : me->getAttackers())
+            {
+                if (attacker->GetClass() == CLASS_ROGUE || attacker->HasInvisibilityAura() || attacker->HasStealthAura())
+                {
+                    if (me->GetDistance(attacker) < 15)
+                    {
+                        targets.insert(me);
+                        break;
+                    }
+                }
+            }
+
+            if (targets.empty())
+                return;
+
+            Unit* target = targets.size() == 1u ? *targets.begin() : Acore::Containers::SelectRandomContainerElement(targets);
+            if (doCast(target, GetSpell(FLARE_1)))
+                return;
         }
 
         void CheckReadiness(uint32 diff)
@@ -2005,7 +1878,6 @@ public:
             myPet->SetFaction(master->GetFaction());
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
-            myPet->SetUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED);
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
 
             //fix scale
@@ -2340,9 +2212,9 @@ public:
                     case ASPECT_OF_THE_HAWK_1:
                         mask |= SPECIFIC_ASPECT_HAWK;
                         break;
-                    //case ASPECT_OF_THE_CHEETAH_1:
-                    //    mask |= SPECIFIC_ASPECT_CHEETAH;
-                    //    break;
+                    case ASPECT_OF_THE_CHEETAH_1:
+                        mask |= SPECIFIC_ASPECT_CHEETAH;
+                        break;
                     //case ASPECT_OF_THE_VIPER_1:
                     //    mask |= SPECIFIC_ASPECT_VIPER;
                     //    break;

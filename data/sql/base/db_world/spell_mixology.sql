@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,14 +17,13 @@
 -- Dumping structure for table acore_world.spell_mixology
 DROP TABLE IF EXISTS `spell_mixology`;
 CREATE TABLE IF NOT EXISTS `spell_mixology` (
-  `entry` mediumint unsigned NOT NULL,
+  `entry` int unsigned NOT NULL,
   `pctMod` float NOT NULL DEFAULT '30' COMMENT 'bonus multiplier',
   PRIMARY KEY (`entry`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.spell_mixology: 21 rows
+-- Dumping data for table acore_world.spell_mixology: ~21 rows (approximately)
 DELETE FROM `spell_mixology`;
-/*!40000 ALTER TABLE `spell_mixology` DISABLE KEYS */;
 INSERT INTO `spell_mixology` (`entry`, `pctMod`) VALUES
 	(28497, 44.4),
 	(33721, 40),
@@ -47,7 +46,6 @@ INSERT INTO `spell_mixology` (`entry`, `pctMod`) VALUES
 	(60346, 44.4),
 	(60347, 44.4),
 	(62380, 80);
-/*!40000 ALTER TABLE `spell_mixology` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

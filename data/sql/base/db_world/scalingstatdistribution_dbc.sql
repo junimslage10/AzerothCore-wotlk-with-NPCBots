@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -40,12 +40,10 @@ CREATE TABLE IF NOT EXISTS `scalingstatdistribution_dbc` (
   `Bonus_10` int NOT NULL DEFAULT '0',
   `Maxlevel` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`ID`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.scalingstatdistribution_dbc: 0 rows
+-- Dumping data for table acore_world.scalingstatdistribution_dbc: ~0 rows (approximately)
 DELETE FROM `scalingstatdistribution_dbc`;
-/*!40000 ALTER TABLE `scalingstatdistribution_dbc` DISABLE KEYS */;
-/*!40000 ALTER TABLE `scalingstatdistribution_dbc` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

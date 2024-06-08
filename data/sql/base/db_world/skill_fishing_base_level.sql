@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,14 +17,13 @@
 -- Dumping structure for table acore_world.skill_fishing_base_level
 DROP TABLE IF EXISTS `skill_fishing_base_level`;
 CREATE TABLE IF NOT EXISTS `skill_fishing_base_level` (
-  `entry` mediumint unsigned NOT NULL DEFAULT '0' COMMENT 'Area identifier',
+  `entry` int unsigned NOT NULL DEFAULT '0' COMMENT 'Area identifier',
   `skill` smallint NOT NULL DEFAULT '0' COMMENT 'Base skill level requirement',
   PRIMARY KEY (`entry`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED COMMENT='Fishing system';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Fishing system';
 
--- Dumping data for table acore_world.skill_fishing_base_level: 94 rows
+-- Dumping data for table acore_world.skill_fishing_base_level: ~94 rows (approximately)
 DELETE FROM `skill_fishing_base_level`;
-/*!40000 ALTER TABLE `skill_fishing_base_level` DISABLE KEYS */;
 INSERT INTO `skill_fishing_base_level` (`entry`, `skill`) VALUES
 	(1, -70),
 	(8, 130),
@@ -120,7 +119,6 @@ INSERT INTO `skill_fishing_base_level` (`entry`, `skill`) VALUES
 	(4710, 480),
 	(4722, 430),
 	(4813, 450);
-/*!40000 ALTER TABLE `skill_fishing_base_level` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

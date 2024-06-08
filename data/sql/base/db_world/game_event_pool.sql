@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -18,13 +18,12 @@
 DROP TABLE IF EXISTS `game_event_pool`;
 CREATE TABLE IF NOT EXISTS `game_event_pool` (
   `eventEntry` tinyint NOT NULL COMMENT 'Entry of the game event. Put negative entry to remove during event.',
-  `pool_entry` mediumint unsigned NOT NULL DEFAULT '0' COMMENT 'Id of the pool',
+  `pool_entry` int unsigned NOT NULL DEFAULT '0' COMMENT 'Id of the pool',
   PRIMARY KEY (`pool_entry`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.game_event_pool: 8 rows
+-- Dumping data for table acore_world.game_event_pool: ~8 rows (approximately)
 DELETE FROM `game_event_pool`;
-/*!40000 ALTER TABLE `game_event_pool` DISABLE KEYS */;
 INSERT INTO `game_event_pool` (`eventEntry`, `pool_entry`) VALUES
 	(9, 5699),
 	(9, 5700),
@@ -34,7 +33,6 @@ INSERT INTO `game_event_pool` (`eventEntry`, `pool_entry`) VALUES
 	(9, 5704),
 	(9, 5705),
 	(9, 5706);
-/*!40000 ALTER TABLE `game_event_pool` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

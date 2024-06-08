@@ -410,6 +410,10 @@ public:
 
             StartAttack(mytar, IsMelee());
 
+            CheckAttackState();
+            if (!me->IsAlive() || !mytar->IsAlive())
+                return;
+
             MoveBehind(mytar);
 
             if (!HasRole(BOT_ROLE_DPS))
@@ -704,42 +708,54 @@ public:
             if (!IsSpellReady(BLINK_1, diff) || IsCasting() || Rand() > 70)
                 return;
 
+            bool cast = false;
+            Unit* u = nullptr;
             if (!IAmFree())
             {
                 if (!me->IsInCombat() && me->GetExactDist2d(master) > std::max<uint8>(master->GetBotMgr()->GetBotFollowDist(), 35) &&
                     me->HasInArc(float(M_PI)*0.67f, master))
                 {
-                    if (doCast(me, GetSpell(BLINK_1)))
-                        return;
+                    cast = true;
                 }
             }
-            if (me->IsInCombat() && !me->getAttackers().empty() && HasRole(BOT_ROLE_RANGED))
+            if (!cast && me->IsInCombat() && !me->getAttackers().empty() && HasRole(BOT_ROLE_RANGED))
             {
-                bool cast = me->HasAuraWithMechanic((1<<MECHANIC_STUN)|(1<<MECHANIC_ROOT));
-                Unit* u = nullptr;
+                cast = me->HasAuraWithMechanic((1<<MECHANIC_STUN)|(1<<MECHANIC_ROOT));
                 if (!cast)
                 {
                     u = me->SelectNearestTarget(7);
-                    cast = (u && u->GetVictim() == me && u->IsWithinLOSInMap(me));
+                    cast = (u && u->GetVictim() == me && u->IsWithinLOSInMap(me, VMAP::ModelIgnoreFlags::M2, LINEOFSIGHT_ALL_CHECKS));
                 }
                 if (!cast)
                 {
                     u = (*me->getAttackers().begin());
                     cast = (u && (!CCed(u, true) || me->getAttackers().size() > 1) && u->GetDistance(me) < 5.f &&
-                        u->IsWithinLOSInMap(me));
+                        u->IsWithinLOSInMap(me, VMAP::ModelIgnoreFlags::M2, LINEOFSIGHT_ALL_CHECKS));
                 }
-                if (cast)
+            }
+            if (!cast && IsWanderer() && (me->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD) || me->HasUnitState(UNIT_STATE_ROOT)))
+            {
+                u = nullptr;
+                InstanceTemplate const* instt = sObjectMgr->GetInstanceTemplate(me->GetMap()->GetId());
+                bool map_allows_mount = (!me->GetMap()->IsDungeon() || me->GetMap()->IsBattlegroundOrArena()) && (!instt || instt->AllowMount);
+                if (!me->GetVictim() ?
+                    (me->IsInCombat() || !map_allows_mount || !IsOutdoors() || IsFlagCarrier(me)) :
+                    !me->IsWithinDist(me->GetVictim(), 15.0f + GetSpellAttackRange(true)))
                 {
-                    if (u)
-                    {
-                        //turn away from target
-                        me->AttackStop();
-                        //me->SetFacingTo(me->GetAbsoluteAngle(u) + M_PI);
-                        me->SetOrientation(me->GetAbsoluteAngle(u) + M_PI);
-                    }
-                    if (doCast(me, GetSpell(BLINK_1)))
-                        return;
+                    Position forwardPos = me->GetFirstCollisionPosition(30.0f, 0.0f);
+                    cast = me->GetExactDist2d(forwardPos) > 15.0f;
                 }
+            }
+            if (cast)
+            {
+                if (u)
+                {
+                    //turn away from target
+                    me->AttackStop();
+                    me->SetOrientation(me->GetAbsoluteAngle(u) + float(M_PI) * frand(0.85f, 1.15f));
+                }
+                if (doCast(me, GetSpell(BLINK_1)))
+                    return;
             }
         }
 
@@ -752,91 +768,49 @@ public:
             if (!FOCUSMAGIC)
                 return;
 
-            if (Unit* target = FindAffectedTarget(FOCUSMAGIC, me->GetGUID(), 70, 3))
+            if (FindAffectedTarget(FOCUSMAGIC, me->GetGUID(), 70, 3))
             {
                 fmCheckTimer = 15000;
                 return;
             }
+
+            std::set<Unit*> targets;
+            if (Group const* gr = master->GetGroup())
+            {
+                std::vector<Unit*> members = BotMgr::GetAllGroupMembers(gr);
+                for (uint8 i = 0; i < 3 && !targets.empty(); ++i)
+                {
+                    for (Unit* member : members)
+                    {
+                        if (!(i == 0 ? member->IsPlayer() : member->IsNPCBot()) || me->GetMap() != member->FindMap() ||
+                            !member->IsAlive() || member->GetPowerType() != POWER_MANA || me->GetExactDist(member) > 30 ||
+                            member->HasAura(FOCUSMAGIC))
+                            continue;
+                        if (i > 0)
+                        {
+                            Creature const* bot = member->ToCreature();
+                            if (bot->GetBotAI()->HasRole(BOT_ROLE_TANK) ||
+                                bot->GetBotClass() == BOT_CLASS_BM || bot->GetBotClass() == BOT_CLASS_HUNTER ||
+                                bot->GetBotClass() == BOT_CLASS_SPELLBREAKER || bot->GetBotClass() == BOT_CLASS_DARK_RANGER ||
+                                bot->GetBotClass() == BOT_CLASS_SEA_WITCH)
+                                continue;
+                            if (i < 2 && bot->GetBotAI()->HasRole(BOT_ROLE_DPS))
+                                continue;
+                        }
+                        targets.insert(member);
+                    }
+                }
+            }
             else
             {
-                Group const* pGroup = master->GetGroup();
-                if (!pGroup)
-                {
-                    if (master->GetPowerType() == POWER_MANA && me->GetExactDist(master) < 30 &&
-                        !master->HasAura(FOCUSMAGIC))
-                        target = master;
-                }
-                else
-                {
-                    for (GroupReference const* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
-                    {
-                        Player* pPlayer = itr->GetSource();
-                        if (!pPlayer || !pPlayer->IsInWorld() || !pPlayer->IsAlive()) continue;
-                        if (me->GetMapId() != pPlayer->GetMapId()) continue;
-                        if (pPlayer->GetPowerType() == POWER_MANA && me->GetExactDist(pPlayer) < 30 &&
-                            !pPlayer->HasAura(FOCUSMAGIC))
-                        {
-                            target = pPlayer;
-                            break;
-                        }
-                    }
-                    //damaging bots
-                    if (!target)
-                    {
-                        for (GroupReference const* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
-                        {
-                            Player* pPlayer = itr->GetSource();
-                            if (!pPlayer || !pPlayer->IsInWorld() || !pPlayer->HaveBot()) continue;
-                            if (me->GetMapId() != pPlayer->GetMapId()) continue;
-                            BotMap const* map = pPlayer->GetBotMgr()->GetBotMap();
-                            for (BotMap::const_iterator it = map->begin(); it != map->end(); ++it)
-                            {
-                                Creature* cre = it->second;
-                                if (!cre || !cre->IsInWorld() || cre == me || !cre->IsAlive() ||
-                                    cre->GetPowerType() != POWER_MANA || cre->GetBotAI()->HasRole(BOT_ROLE_TANK) ||
-                                    cre->GetBotClass() == BOT_CLASS_BM || cre->GetBotClass() == BOT_CLASS_HUNTER ||
-                                    cre->GetBotClass() == BOT_CLASS_SPELLBREAKER || cre->GetBotClass() == BOT_CLASS_DARK_RANGER ||
-                                    cre->GetBotClass() == BOT_CLASS_SEA_WITCH)
-                                    continue;
-                                if (cre->GetBotAI()->HasRole(BOT_ROLE_DPS) && me->GetExactDist(cre) < 30 &&
-                                    !cre->HasAura(FOCUSMAGIC))
-                                {
-                                    target = cre;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    //any bot
-                    if (!target)
-                    {
-                        for (GroupReference const* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
-                        {
-                            Player* pPlayer = itr->GetSource();
-                            if (!pPlayer || !pPlayer->IsInWorld() || !pPlayer->HaveBot()) continue;
-                            if (me->GetMapId() != pPlayer->GetMapId()) continue;
-                            BotMap const* map = pPlayer->GetBotMgr()->GetBotMap();
-                            for (BotMap::const_iterator it = map->begin(); it != map->end(); ++it)
-                            {
-                                Creature* cre = it->second;
-                                if (!cre || !cre->IsInWorld() || cre == me || !cre->IsAlive() ||
-                                    cre->GetPowerType() != POWER_MANA || cre->GetBotAI()->HasRole(BOT_ROLE_TANK) ||
-                                    cre->GetBotClass() == BOT_CLASS_BM || cre->GetBotClass() == BOT_CLASS_HUNTER ||
-                                    cre->GetBotClass() == BOT_CLASS_SPELLBREAKER || cre->GetBotClass() == BOT_CLASS_DARK_RANGER ||
-                                    cre->GetBotClass() == BOT_CLASS_SEA_WITCH)
-                                    continue;
-                                if (me->GetExactDist(cre) < 30 &&
-                                    !cre->HasAura(FOCUSMAGIC))
-                                {
-                                    target = cre;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
+                if (master->GetPowerType() == POWER_MANA && me->GetExactDist(master) < 30 && !master->HasAura(FOCUSMAGIC))
+                    targets.insert(master);
+            }
 
-                if (target && doCast(target, FOCUSMAGIC))
+            if (!targets.empty())
+            {
+                Unit* target = targets.size() == 1u ? *targets.begin() : Acore::Containers::SelectRandomContainerElement(targets);
+                if (doCast(target, FOCUSMAGIC))
                 {
                     fmCheckTimer = 30000;
                     return;
@@ -848,7 +822,7 @@ public:
 
         void CheckIceBlock(uint32 diff)
         {
-            if (!me->IsAlive() || GC_Timer > diff || me->GetVehicle() || !GetSpell(ICE_BLOCK_1) || Rand() > 60 || IsTank())
+            if (!me->IsAlive() || GC_Timer > diff || me->GetVehicle() || !GetSpell(ICE_BLOCK_1) || Rand() > 60 || IsTank() || IsFlagCarrier(me))
                 return;
 
             if (iceblockCheckTimer <= diff)
@@ -1598,7 +1572,6 @@ public:
             myPet->SetFaction(master->GetFaction());
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
-            myPet->SetUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED);
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SUMMON_WATER_ELEMENTAL_1);
 
@@ -1704,8 +1677,8 @@ public:
  /*Special*/InitSpellMap(LIVING_BOMB_DAMAGE_1); //important
             InitSpellMap(SLOW_FALL_1);
             InitSpellMap(ICE_LANCE_1);
-            InitSpellMap(FROST_WARD_1);
-            InitSpellMap(FIRE_WARD_1);
+            //InitSpellMap(FROST_WARD_1);
+            //InitSpellMap(FIRE_WARD_1);
             InitSpellMap(MIRROR_IMAGE_1);
 
  /*Special*/InitSpellMap(CONJURE_MANA_GEM_1);

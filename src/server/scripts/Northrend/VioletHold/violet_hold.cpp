@@ -15,14 +15,16 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "violet_hold.h"
+#include "CreatureScript.h"
+#include "GameObjectScript.h"
 #include "PassiveAI.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
+#include "violet_hold.h"
 
 /// @todo: Missing Sinclari Trigger announcements (32204) Look at its creature_text for more info.
 /// @todo: Activation Crystals (go_vh_activation_crystal) (193611) are spammable, should be a 1 time use per crystal.
@@ -1184,6 +1186,36 @@ public:
     }
 };
 
+struct npc_violet_hold_defense_system : public ScriptedAI
+{
+    npc_violet_hold_defense_system(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        DoCast(RAND(SPELL_DEFENSE_SYSTEM_SPAWN_EFFECT, SPELL_DEFENSE_SYSTEM_VISUAL));
+        events.ScheduleEvent(EVENT_ARCANE_LIGHTNING, 4s);
+        events.ScheduleEvent(EVENT_ARCANE_LIGHTNING_INSTAKILL, 4s);
+        me->DespawnOrUnsummon(7s, 0s);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        events.Update(diff);
+
+        switch (events.ExecuteEvent())
+        {
+            case EVENT_ARCANE_LIGHTNING:
+                DoCastAOE(RAND(SPELL_ARCANE_LIGHTNING, SPELL_ARCANE_LIGHTNING_VISUAL));
+                events.RepeatEvent(2000);
+                break;
+            case EVENT_ARCANE_LIGHTNING_INSTAKILL:
+                DoCastAOE(SPELL_ARCANE_LIGHTNING_INSTAKILL);
+                events.RepeatEvent(1000);
+                break;
+        }
+    }
+};
+
 void AddSC_violet_hold()
 {
     new go_vh_activation_crystal();
@@ -1201,4 +1233,5 @@ void AddSC_violet_hold()
     new npc_azure_stalker();
 
     new spell_destroy_door_seal();
+    RegisterCreatureAI(npc_violet_hold_defense_system);
 }

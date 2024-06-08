@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -21,13 +21,12 @@ CREATE TABLE IF NOT EXISTS `instance_encounters` (
   `creditType` tinyint unsigned NOT NULL DEFAULT '0',
   `creditEntry` int unsigned NOT NULL DEFAULT '0',
   `lastEncounterDungeon` smallint unsigned NOT NULL DEFAULT '0' COMMENT 'If not 0, LfgDungeon.dbc entry for the instance it is last encounter in',
-  `comment` varchar(255) NOT NULL DEFAULT '',
+  `comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`entry`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.instance_encounters: 612 rows
+-- Dumping data for table acore_world.instance_encounters: ~612 rows (approximately)
 DELETE FROM `instance_encounters`;
-/*!40000 ALTER TABLE `instance_encounters` DISABLE KEYS */;
 INSERT INTO `instance_encounters` (`entry`, `creditType`, `creditEntry`, `lastEncounterDungeon`, `comment`) VALUES
 	(161, 0, 644, 0, 'Rhahk\'zor'),
 	(162, 0, 643, 0, 'Sneed'),
@@ -641,7 +640,6 @@ INSERT INTO `instance_encounters` (`entry`, `creditType`, `creditEntry`, `lastEn
 	(892, 0, 39747, 0, 'Saviana Ragefire'),
 	(893, 0, 39746, 0, 'General Zarithrian'),
 	(894, 0, 39746, 0, 'General Zarithrian');
-/*!40000 ALTER TABLE `instance_encounters` ENABLE KEYS */;
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

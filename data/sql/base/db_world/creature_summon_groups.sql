@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- Server version:               8.0.29 - MySQL Community Server - GPL
+-- Server version:               8.1.0 - MySQL Community Server - GPL
 -- Server OS:                    Win64
--- HeidiSQL Version:             12.0.0.6468
+-- HeidiSQL Version:             12.3.0.6589
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -17,22 +17,21 @@
 -- Dumping structure for table acore_world.creature_summon_groups
 DROP TABLE IF EXISTS `creature_summon_groups`;
 CREATE TABLE IF NOT EXISTS `creature_summon_groups` (
-  `summonerId` mediumint unsigned NOT NULL DEFAULT '0',
+  `summonerId` int unsigned NOT NULL DEFAULT '0',
   `summonerType` tinyint unsigned NOT NULL DEFAULT '0',
   `groupId` tinyint unsigned NOT NULL DEFAULT '0',
-  `entry` mediumint unsigned NOT NULL DEFAULT '0',
+  `entry` int unsigned NOT NULL DEFAULT '0',
   `position_x` float NOT NULL DEFAULT '0',
   `position_y` float NOT NULL DEFAULT '0',
   `position_z` float NOT NULL DEFAULT '0',
   `orientation` float NOT NULL DEFAULT '0',
   `summonType` tinyint unsigned NOT NULL DEFAULT '0',
   `summonTime` int unsigned NOT NULL DEFAULT '0',
-  `Comment` varchar(255) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+  `Comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table acore_world.creature_summon_groups: 624 rows
+-- Dumping data for table acore_world.creature_summon_groups: ~657 rows (approximately)
 DELETE FROM `creature_summon_groups`;
-/*!40000 ALTER TABLE `creature_summon_groups` DISABLE KEYS */;
 INSERT INTO `creature_summon_groups` (`summonerId`, `summonerType`, `groupId`, `entry`, `position_x`, `position_y`, `position_z`, `orientation`, `summonType`, `summonTime`, `Comment`) VALUES
 	(28952, 0, 1, 28988, 6810.89, -4592.67, 440.678, 1.29927, 3, 100000, ''),
 	(28952, 0, 1, 28988, 6806.19, -4595.94, 440.678, 1.25002, 3, 100000, ''),
@@ -261,12 +260,6 @@ INSERT INTO `creature_summon_groups` (`summonerId`, `summonerType`, `groupId`, `
 	(18528, 0, 1, 22988, -3551.78, 524.12, 18.2, 1.76, 3, 300000, ''),
 	(18528, 0, 1, 22857, -3566.11, 563.07, 13.65, 1.54, 3, 300000, ''),
 	(18528, 0, 1, 22857, -3553.42, 562.74, 14.34, 1.54, 3, 300000, ''),
-	(20923, 0, 1, 17462, 480.69, 311.13, 1.94, 3.14, 4, 30000, ''),
-	(20923, 0, 1, 17462, 480.81, 313.44, 1.94, 3.14, 4, 30000, ''),
-	(20923, 0, 1, 17462, 480.93, 315.74, 1.94, 3.14, 4, 30000, ''),
-	(20923, 0, 1, 17462, 481.08, 318.12, 1.94, 3.14, 4, 30000, ''),
-	(20923, 0, 1, 17462, 481.27, 320.42, 1.95, 3.14, 4, 30000, ''),
-	(20923, 0, 1, 17462, 484.73, 321.79, 1.95, 3.14, 4, 30000, ''),
 	(17461, 0, 1, 17462, 480.69, 311.13, 1.94, 3.14, 4, 30000, ''),
 	(17461, 0, 1, 17462, 480.81, 313.44, 1.94, 3.14, 4, 30000, ''),
 	(17461, 0, 1, 17462, 480.93, 315.74, 1.94, 3.14, 4, 30000, ''),
@@ -657,8 +650,46 @@ INSERT INTO `creature_summon_groups` (`summonerId`, `summonerType`, `groupId`, `
 	(183850, 1, 0, 19672, -370.875, -82.7758, -0.875429, 0.08726, 8, 0, 'Consortium Transporter - Group 0 - Consortium Laborer'),
 	(183850, 1, 0, 19672, -374.694, -63.5046, -0.875432, 0.57595, 8, 0, 'Consortium Transporter - Group 0 - Consortium Laborer'),
 	(183850, 1, 0, 19673, -358.843, -74.0751, -0.872663, 0.68067, 8, 0, 'Consortium Transporter - Group 0 - Consortium Engineer'),
-	(183850, 1, 0, 19672, -386.893, -60.8431, -0.87544, 3.36848, 8, 0, 'Consortium Transporter - Group 0 - Consortium Laborer');
-/*!40000 ALTER TABLE `creature_summon_groups` ENABLE KEYS */;
+	(183850, 1, 0, 19672, -386.893, -60.8431, -0.87544, 3.36848, 8, 0, 'Consortium Transporter - Group 0 - Consortium Laborer'),
+	(23491, 0, 0, 18537, 4805.8, 3774.11, 210.617, 5.55015, 6, 60000, 'Deathblow to the Legion - Adyen'),
+	(23491, 0, 0, 19466, 4804.81, 3775.56, 210.617, 5.53269, 6, 60000, 'Deathblow to the Legion - Orelis'),
+	(23491, 0, 0, 19467, 4803.64, 3773.84, 210.618, 5.60251, 6, 60000, 'Deathblow to the Legion - Karja'),
+	(17893, 0, 0, 17957, -101.139, -745.353, 35.4838, 3.47604, 4, 30000, 'Naturalist Bite Event'),
+	(17893, 0, 0, 17960, -98.6582, -742.38, 35.3191, 3.33219, 4, 30000, 'Naturalist Bite Event'),
+	(17893, 0, 0, 17961, -97.3511, -745.455, 35.6992, 3.67545, 4, 30000, 'Naturalist Bite Event'),
+	(19851, 0, 0, 19541, 3035.48, 3630.77, 144.436, 1.48814, 4, 60000, 'Netherstorm Agent - You, Robot - Negatron Failure Event'),
+	(19851, 0, 0, 19541, 3029.64, 3638.95, 143.874, 1.16937, 4, 60000, 'Netherstorm Agent - You, Robot - Negatron Failure Event'),
+	(17969, 0, 0, 18042, -916.486, 5355.63, 18.2523, 5, 1, 60000, ''),
+	(17969, 0, 0, 18042, -918.929, 5358.43, 18.0589, 5, 1, 60000, ''),
+	(17969, 0, 1, 18042, -668.29, 5382.91, 22.3248, 5, 1, 60000, ''),
+	(17969, 0, 1, 18042, -669.279, 5386.8, 23.0125, 5, 1, 60000, ''),
+	(185220, 1, 1, 22369, -3750.57, 4737.88, -19.35, 4.01853, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3744.9, 4736.18, -18.717, 2.8797, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3773.46, 4720.45, -21.5752, 1.44792, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3773.85, 4715.78, -21.6975, 1.45735, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3774.08, 4710.46, -21.7888, 0.492878, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3774.95, 4704.25, -21.977, 0, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3772.26, 4699.55, -21.3722, 0.111175, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3769.89, 4694.89, -20.7665, 0.406484, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3767.46, 4691.24, -20.1502, 6.20901, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3763.69, 4688.06, -19.2893, 0.613044, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3760.22, 4685.72, -18.5906, 0.334227, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3756.1, 4683.74, -17.9125, 0.734772, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3751.6, 4682.35, -17.3406, 1.57044, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3746.76, 4682.73, -16.8866, 1.93172, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3742.75, 4684.69, -16.6026, 1.98513, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3739.15, 4687.17, -16.4299, 1.88145, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3736.77, 4689.91, -16.3146, 2.49721, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3733.74, 4693.02, -16.24, 2.487, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3764.99, 4733.9, -20.6666, 5.65487, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3770.51, 4728.37, -21.0502, 0, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3767.97, 4731.29, -20.9252, 4.03171, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3772.36, 4724.78, -21.3002, 5.81195, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3731.43, 4697.39, -16.1774, 2.74225, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3729.91, 4701.97, -16.1335, 3.04384, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3729.4, 4706.81, -16.1222, 3.61561, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3760.43, 4736.39, -20.2451, 4.01068, 4, 300000, 'Massive Chest - Quest: The Dread Relic'),
+	(185220, 1, 1, 22369, -3755.66, 4737.93, -19.8168, 4.3861, 4, 300000, 'Massive Chest - Quest: The Dread Relic');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

@@ -16,7 +16,6 @@
  */
 
 #include "TemporarySummon.h"
-#include "CreatureAI.h"
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "Log.h"
@@ -72,7 +71,7 @@ void TempSummon::Update(uint32 diff)
 {
     Creature::Update(diff);
 
-    if (m_deathState == DEAD)
+    if (m_deathState == DeathState::Dead)
     {
         UnSummon();
         return;
@@ -112,7 +111,7 @@ void TempSummon::Update(uint32 diff)
             }
         case TEMPSUMMON_TIMED_DESPAWN_OOC_ALIVE:
             {
-                if (!IsInCombat() && m_deathState != CORPSE)
+                if (!IsInCombat() && m_deathState != DeathState::Corpse)
                 {
                     if (m_timer <= diff)
                     {
@@ -129,7 +128,7 @@ void TempSummon::Update(uint32 diff)
             }
         case TEMPSUMMON_CORPSE_TIMED_DESPAWN:
             {
-                if (m_deathState == CORPSE)
+                if (m_deathState == DeathState::Corpse)
                 {
                     if (m_timer <= diff)
                     {
@@ -144,7 +143,7 @@ void TempSummon::Update(uint32 diff)
         case TEMPSUMMON_CORPSE_DESPAWN:
             {
                 // if m_deathState is DEAD, CORPSE was skipped
-                if (m_deathState == CORPSE)
+                if (m_deathState == DeathState::Corpse)
                 {
                     UnSummon();
                     return;
@@ -159,7 +158,7 @@ void TempSummon::Update(uint32 diff)
         case TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN:
             {
                 // if m_deathState is DEAD, CORPSE was skipped
-                if (m_deathState == CORPSE)
+                if (m_deathState == DeathState::Corpse)
                 {
                     UnSummon();
                     return;
@@ -325,19 +324,6 @@ void TempSummon::UnSummon(uint32 msTime)
         }
     }
 
-    //npcbot
-    //if (IsNPCBot())
-    //{
-    //    //TC_LOG_ERROR("entities.player", "TempSummon::UnSummon(): Trying to unsummon Bot %s (guidLow: %u owner: %s)", GetName().c_str(), GetGUIDLow(), GetBotOwner()->GetName().c_str());
-    //    if (IsTempBot())
-    //        if (IS_CREATURE_GUID(GetCreatorGUID()))
-    //            if (Unit* bot = sObjectAccessor->FindUnit(GetCreatorGUID()))
-    //                if (bot->ToCreature()->IsNPCBot())
-    //                    bot->ToCreature()->OnBotDespawn(this);
-    //    return;
-    //}
-    //end npcbots
-
     AddObjectToRemoveList();
 }
 
@@ -428,7 +414,7 @@ bool Minion::IsGuardianPet() const
 void Minion::setDeathState(DeathState s, bool despawn)
 {
     Creature::setDeathState(s, despawn);
-    if (s == JUST_DIED && IsGuardianPet())
+    if (s == DeathState::JustDied && IsGuardianPet())
         if (Unit* owner = GetOwner())
             if (owner->GetTypeId() == TYPEID_PLAYER && owner->GetMinionGUID() == GetGUID())
                 for (Unit::ControlSet::const_iterator itr = owner->m_Controlled.begin(); itr != owner->m_Controlled.end(); ++itr)

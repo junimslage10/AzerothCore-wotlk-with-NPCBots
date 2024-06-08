@@ -66,6 +66,7 @@ enum RogueBaseSpells
     AMBUSH_1                            = 8676,
 
     DISTRACT_1                          = 1725, //NYI
+    DISARM_TRAP_1                       = 1842, //Unused, see bot_ai::ProcessImmediateNonAttackTarget()
 
     //Poisons
     CRIPPLING_POISON_1                  = 3408,
@@ -176,7 +177,7 @@ static const uint32 Rogue_spells_cc_arr[] =
 static const uint32 Rogue_spells_support_arr[] =
 { /*EXPOSE_ARMOR_1, DISTRACT_1, PICK_LOCK_1,*/ STEALTH_1, ADRENALINE_RUSH_1, BLADE_FLURRY_1, CLOAK_OF_SHADOWS_1,
 COLD_BLOOD_1, DISMANTLE_1, EVASION_1, FEINT_1, HUNGER_FOR_BLOOD_1, PREMEDITATION_1, PREPARATION_1, SHADOW_DANCE_1,
-SHADOWSTEP_1, SLICE_DICE_1, SPRINT_1, TRICKS_OF_THE_TRADE_1, VANISH_1, THISTLE_TEA,
+SHADOWSTEP_1, SLICE_DICE_1, SPRINT_1, TRICKS_OF_THE_TRADE_1, VANISH_1, DISARM_TRAP_1, THISTLE_TEA,
 /*CRIPPLING_POISON_1, INSTANT_POISON_1, DEADLY_POISON_1, WOUND_POISON_1, MIND_NUMBING_POISON_1, ANESTHETIC_POISON_1*/ };
 
 static const std::vector<uint32> Rogue_spells_damage(FROM_ARRAY(Rogue_spells_damage_arr));
@@ -296,7 +297,8 @@ public:
             if (!CheckAttackTarget())
             {
                 if (!me->IsInCombat() && Rand() < 5 && me->HasAuraType(SPELL_AURA_MOD_STEALTH) &&
-                    !me->GetAuraEffect(SPELL_AURA_MOD_INCREASE_SPEED, SPELLFAMILY_ROGUE, 0x800, 0x0, 0x0)) //vanish
+                    !me->GetAuraEffect(SPELL_AURA_MOD_INCREASE_SPEED, SPELLFAMILY_ROGUE, 0x800, 0x0, 0x0) && //vanish
+                    !(!HasRole(BOT_ROLE_DPS) && GetLastWMOArea() == 29476))
                     me->RemoveAurasDueToSpell(STEALTH_1);
                 return;
             }
@@ -316,13 +318,17 @@ public:
 
             StartAttack(mytar, IsMelee());
 
+            CheckAttackState();
+            if (!me->IsAlive() || !mytar->IsAlive())
+                return;
+
             float dist = me->GetDistance(mytar);
 
             //Stealth (for Cooldown handling see bot_ai::ReleaseSpellCooldown)
             //we don't want rogue to swith into stealth for no purpose
             if (IsSpellReady(STEALTH_1, diff, false) && !me->IsInCombat() && !IsTank() && Rand() < 50 && dist < 28 &&
                 (!me->HasAuraType(SPELL_AURA_PERIODIC_DAMAGE) || (mytar->GetTypeId() == TYPEID_PLAYER && dist < 6)) &&
-                (me->GetLevel() >= 35 || (energy >= 40 && me->GetLevel() >= 30) || dist > 8))
+                (me->GetLevel() >= 35 || (energy >= 40 && me->GetLevel() >= 30) || dist > 8) && !IsFlagCarrier(me))
             {
                 if (doCast(me, GetSpell(STEALTH_1)))
                 {}
@@ -377,7 +383,7 @@ public:
             }
             //Blind: in pvp only for restealth
             if (IsSpellReady(BLIND_1, diff) && !stealthed && !shadowdance && dist <= 15 && Rand() < 30 &&
-                !CCed(mytar) && energy >= ecost(BLIND_1) &&
+                !CCed(mytar) && !mytar->IsTotem() && energy >= ecost(BLIND_1) &&
                 ((energy <= 30 && mytar->GetTarget() == me->GetGUID() &&
                 mytar->getAttackers().size() <= 1 &&
                 !mytar->HasAuraType(SPELL_AURA_PERIODIC_DAMAGE) &&
@@ -820,7 +826,7 @@ public:
         void CheckVanish(uint32 diff)
         {
             if (!IsSpellReady(VANISH_1, diff, false) || !me->IsInCombat() || me->IsMounted() || IsTank() || Rand() > 50 ||
-                me->getAttackers().empty() || me->HasAuraType(SPELL_AURA_MOD_STEALTH) ||
+                me->getAttackers().empty() || IsFlagCarrier(me) || me->HasAuraType(SPELL_AURA_MOD_STEALTH) ||
                 me->HasAuraType(SPELL_AURA_ALLOW_ONLY_ABILITY) || me->HasAuraType(SPELL_AURA_PERIODIC_DAMAGE))
                 return;
 
@@ -979,11 +985,24 @@ public:
 
         void CheckSprint(uint32 diff)
         {
-            if (!IsSpellReady(SPRINT_1, diff, false) || !HasBotCommandState(BOT_COMMAND_FOLLOW) ||
-                me->GetVictim() || me->IsMounted() || IAmFree() || Rand() > 15)
+            if (!IsSpellReady(SPRINT_1, diff) || (!IAmFree() && !HasBotCommandState(BOT_COMMAND_FOLLOW)) || Rand() > 35 || me->IsMounted())
                 return;
 
-            if (me->GetExactDist2d(master) > std::max<uint8>(master->GetBotMgr()->GetBotFollowDist(), 40))
+            if (IAmFree())
+            {
+                InstanceTemplate const* instt = sObjectMgr->GetInstanceTemplate(me->GetMap()->GetId());
+                bool map_allows_mount = (!me->GetMap()->IsDungeon() || me->GetMap()->IsBattlegroundOrArena()) && (!instt || instt->AllowMount);
+                if (me->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD) &&
+                    (!me->GetVictim() ? (!map_allows_mount || me->IsInCombat() || IsFlagCarrier(me)) : !me->IsWithinDist(me->GetVictim(), 8.0f)))
+                {
+                    if (doCast(me, GetSpell(SPRINT_1)))
+                        return;
+                }
+
+                return;
+            }
+
+            if (me->GetExactDist2d(master) > std::max<uint8>(master->GetBotMgr()->GetBotFollowDist(), 45))
             {
                 if (doCast(me, GetSpell(SPRINT_1)))
                     return;
@@ -1300,6 +1319,8 @@ public:
             //Glyph of Ambush: + 5 yd range for Ambush
             if (/*lvl >= 18 && */baseId == AMBUSH_1)
                 flatbonus += 5.f;
+            if (baseId == DISARM_TRAP_1)
+                flatbonus += 10.f;
 
             maxrange = maxrange * (1.0f + pctbonus) + flatbonus;
         }
@@ -1834,6 +1855,7 @@ public:
             //InitSpellMap(EXPOSE_ARMOR_1);
             InitSpellMap(DISMANTLE_1);
             InitSpellMap(FEINT_1);
+            InitSpellMap(DISARM_TRAP_1);
 
             InitSpellMap(BACKSTAB_1);
             InitSpellMap(SINISTER_STRIKE_1);
