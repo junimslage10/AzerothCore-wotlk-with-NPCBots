@@ -69,7 +69,7 @@ RealmID = 1
 #        Example:     "@prefix@\home\youruser\azerothcore\data"
 #        Default:     "."
 
-DataDir = "."
+DataDir = "../Data"
 
 #
 #    LogsDir
@@ -79,7 +79,7 @@ DataDir = "."
 #        Example:     "/home/youruser/azerothcore/logs"
 #        Default:     "" - (Log files will be stored in the current path)
 
-LogsDir = ""
+LogsDir = "./Logs"
 
 #
 #    TempDir
@@ -208,7 +208,7 @@ SourceDirectory = ""
 #                     "/usr/bin/mysql"
 #        Default:     ""
 
-MySQLExecutable = ""
+MySQLExecutable = "../mysql/bin/mysql.exe"
 
 #
 #    ThreadPool
@@ -1054,7 +1054,7 @@ Instance.IgnoreLevel = 0
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
-Instance.IgnoreRaid = 0
+Instance.IgnoreRaid = 1
 
 #
 #    Instance.GMSummonPlayer
@@ -4152,7 +4152,7 @@ NpcBot.Enable = 1
 #        Default:     1
 #        Max:         39
 
-NpcBot.MaxBots = 1
+NpcBot.MaxBots = 39
 
 #
 #    NpcBot.MaxBotsPerClass
@@ -4291,7 +4291,7 @@ NpcBot.Mult.Damage.SeaWitch          = 1.0
 #                     1 - (NpcBot.Enable.DungeonFinder)
 
 NpcBot.Enable.Dungeon       = 1
-NpcBot.Enable.Raid          = 0
+NpcBot.Enable.Raid          = 1
 NpcBot.Enable.BG            = 0
 NpcBot.Enable.Arena         = 0
 NpcBot.Enable.DungeonFinder = 1
@@ -4388,7 +4388,7 @@ NpcBot.EquipmentDisplay.ShowHelm  = 1
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
-NpcBot.Transmog.Enable = 0
+NpcBot.Transmog.Enable = 1
 
 #
 #    NpcBot.Transmog.MixArmorClasses
@@ -4508,7 +4508,14 @@ NpcBot.WanderingBots.Continents.Count = 0
 #        Default:     0 - (Disabled)
 #                     1 - (Enable)
 
-NpcBot.WanderingBots.BG.Enable = 0
+NpcBot.WanderingBots.BG.Enable = 1
 
 #
+###################################################################################################
+
+##################################### Mod Learn Spells ############################################
+# Should the player receive all spells on first login?
+# Useful for instant leveling type of servers
+# (1: true | 0: false)
+LearnSpells.OnFirstLogin = 0
 ###################################################################################################
